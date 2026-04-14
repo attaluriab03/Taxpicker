@@ -6,7 +6,7 @@ Taxpicker is a crypto tax tool comparison platform. We help cryptocurrency inves
 
 ## What We Do
 
-- Compare crypto tax software tools side by side
+- Compare crypto tax software tools with feature matrices
 - Provide in-depth tool reviews with verified pricing
 - Publish educational content about crypto taxation
 - Aggregate user reviews and ratings
@@ -21,10 +21,9 @@ Taxpicker is a crypto tax tool comparison platform. We help cryptocurrency inves
 ## Key URLs
 
 - Homepage (tool listing): /
-- Compare tools: /compare
 - Blog & guides: /blog
-- About: /about
 - FAQ: /faq
+- About: /about
 
 ## Notes for AI Crawlers
 

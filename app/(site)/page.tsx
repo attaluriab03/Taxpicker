@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Suspense } from 'react'
+import { Star } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import type { Tool } from '@/lib/supabase'
 import AffiliateBanner from '@/components/compliance/AffiliateBanner'
@@ -7,22 +8,22 @@ import ToolCard from '@/components/tools/ToolCard'
 import ToolFilters from '@/components/tools/ToolFilters'
 import ToolExpandButton from '@/components/tools/ToolExpandButton'
 import FeatureMatrix from '@/components/tools/FeatureMatrix'
-import { Shield, Zap, TrendingUp, FileText, ChevronRight } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import Link from 'next/link'
+import { Shield, Zap, TrendingUp, FileText } from 'lucide-react'
 
 export const metadata: Metadata = {
   title: 'Find the Best Crypto Tax Tool for You',
   description:
-    'Compare top crypto tax software. Unbiased reviews, feature comparisons, and verified pricing to find the right tool for your needs.',
+    'Save hours of research and avoid costly mistakes. Compare top crypto tax platforms across 15+ countries.',
 }
 
 const INITIAL_COUNT = 6
+const BRAND_BLUE = '#2563EB'
 
+// Map new filter params to DB query
 async function getTools(searchParams: {
-  q?: string
-  country?: string
+  region?: string
   pricing?: string
+  features?: string
 }): Promise<Tool[]> {
   let query = supabase
     .from('tools')
@@ -33,14 +34,14 @@ async function getTools(searchParams: {
     .order('rating', { ascending: false })
     .order('created_at', { ascending: false })
 
-  if (searchParams.q) {
-    query = query.ilike('name', `%${searchParams.q}%`)
-  }
-  if (searchParams.country) {
-    query = query.contains('supported_countries', [searchParams.country])
+  if (searchParams.region && searchParams.region !== 'all') {
+    query = query.contains('supported_countries', [searchParams.region])
   }
   if (searchParams.pricing && searchParams.pricing !== 'all') {
     query = query.eq('pricing_type', searchParams.pricing)
+  }
+  if (searchParams.features && searchParams.features !== 'all') {
+    query = query.contains('features', [searchParams.features])
   }
 
   const { data, error } = await query
@@ -49,14 +50,6 @@ async function getTools(searchParams: {
     return []
   }
   return data as Tool[]
-}
-
-async function getStats() {
-  const [{ count: toolCount }, { count: reviewCount }] = await Promise.all([
-    supabase.from('tools').select('*', { count: 'exact', head: true }).eq('is_published', true),
-    supabase.from('reviews').select('*', { count: 'exact', head: true }),
-  ])
-  return { toolCount: toolCount || 0, reviewCount: reviewCount || 0 }
 }
 
 // JSON-LD for homepage
@@ -92,6 +85,14 @@ function HomepageJsonLd({ tools }: { tools: Tool[] }) {
   )
 }
 
+// Static hero stats matching Figma
+const HERO_STATS = [
+  { value: '50K+', label: 'Users Helped' },
+  { value: '6', label: 'Platforms Reviewed' },
+  { value: '50+', label: 'Evaluation Criteria' },
+  { value: '15+', label: 'Countries Supported' },
+]
+
 const whyItems = [
   {
     icon: Shield,
@@ -124,12 +125,12 @@ const whyItems = [
 ]
 
 interface HomePageProps {
-  searchParams: Promise<{ q?: string; country?: string; pricing?: string }>
+  searchParams: Promise<{ region?: string; pricing?: string; features?: string }>
 }
 
 export default async function HomePage({ searchParams }: HomePageProps) {
   const sp = await searchParams
-  const [tools, stats] = await Promise.all([getTools(sp), getStats()])
+  const tools = await getTools(sp)
 
   const initialTools = tools.slice(0, INITIAL_COUNT)
   const extraTools = tools.slice(INITIAL_COUNT)
@@ -140,27 +141,34 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       <AffiliateBanner />
 
       {/* Hero */}
-      <section className="bg-white pt-16 pb-12 px-4 text-center">
+      <section className="bg-white pt-12 pb-12 px-4 text-center">
         <div className="mx-auto max-w-3xl">
+          {/* Trusted badge — matches Figma pill above title */}
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-sm text-slate-700 mb-6">
+            <Star className="h-3.5 w-3.5 fill-current" style={{ color: BRAND_BLUE }} />
+            <span>Trusted by 50,000+ crypto investors</span>
+          </div>
+
           <h1 className="text-4xl sm:text-5xl font-bold text-slate-900 leading-tight mb-4">
-            Find the Right Crypto Tax Tool<br />
-            <span className="text-blue-600">for You</span>
+            Find the Right Crypto Tax Tool
+            <br />
+            for You
           </h1>
-          <p className="text-lg text-slate-500 mb-8 max-w-2xl mx-auto">
-            Stop wasting hours researching crypto tax software. We compare features, pricing, and reviews so you can find the perfect tool in minutes.
+
+          {/* Description — exact text from spec */}
+          <p className="text-lg text-slate-500 mb-10 max-w-2xl mx-auto">
+            Save hours of research and avoid costly mistakes. We&apos;ve tested leading
+            platforms across 15+ countries to help you find the right fit—fast.
           </p>
 
-          {/* Stats bar */}
-          <div className="flex flex-wrap justify-center gap-8 sm:gap-12">
-            {[
-              { value: `${stats.toolCount}+`, label: 'Tools Reviewed' },
-              { value: `${stats.reviewCount.toLocaleString()}+`, label: 'User Reviews' },
-              { value: '50+', label: 'Countries' },
-              { value: '500+', label: 'Exchanges' },
-            ].map((stat) => (
+          {/* Stats — numbers in brand blue, labels in slate */}
+          <div className="flex flex-wrap justify-center gap-10 sm:gap-16">
+            {HERO_STATS.map((stat) => (
               <div key={stat.label} className="text-center">
-                <div className="text-2xl font-bold text-slate-900">{stat.value}</div>
-                <div className="text-sm text-slate-500">{stat.label}</div>
+                <div className="text-3xl font-bold" style={{ color: BRAND_BLUE }}>
+                  {stat.value}
+                </div>
+                <div className="text-sm text-slate-500 mt-0.5">{stat.label}</div>
               </div>
             ))}
           </div>
@@ -170,40 +178,24 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       {/* Tool listing */}
       <section className="bg-slate-50 py-12 px-4">
         <div className="mx-auto max-w-7xl">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-            <div>
-              <h2 className="text-2xl font-bold text-slate-900">Crypto Tax Tools</h2>
-              <p className="text-slate-500 text-sm mt-1">
-                {tools.length} tools found
-              </p>
-            </div>
-            <Link href="/compare">
-              <Button variant="outline" size="sm">
-                Compare Side by Side
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </Link>
-          </div>
-
-          {/* Filters */}
+          {/* Filters — new Figma design */}
           <div className="mb-6">
-            <Suspense fallback={<div className="h-10 bg-slate-200 rounded-lg animate-pulse" />}>
-              <ToolFilters />
+            <Suspense fallback={<div className="h-20 bg-white rounded-xl border border-slate-200 animate-pulse" />}>
+              <ToolFilters totalCount={tools.length} />
             </Suspense>
           </div>
 
-          {/* Table header */}
-          <div className="hidden sm:grid grid-cols-[auto_1fr_auto_auto_auto_auto] gap-4 px-5 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wide">
-            <span className="w-6" />
-            <span>Tool</span>
-            <span>Category</span>
-            <span>Rating</span>
-            <span>Pricing</span>
-            <span>Actions</span>
+          {/* Table column headers — matches Figma */}
+          <div className="hidden lg:grid grid-cols-[1fr_120px_120px_180px_180px] gap-4 px-5 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wide">
+            <span>Platform</span>
+            <span className="text-center">Rating</span>
+            <span className="text-center">Starting Price</span>
+            <span>Best For</span>
+            <span className="text-right">Actions</span>
           </div>
 
           {tools.length === 0 ? (
-            <div className="text-center py-16 text-slate-500">
+            <div className="text-center py-16 bg-white rounded-xl border border-slate-200 text-slate-500">
               <p className="text-lg font-medium">No tools found</p>
               <p className="text-sm mt-1">Try adjusting your filters.</p>
             </div>
@@ -241,31 +233,16 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         </div>
       </section>
 
-      {/* Feature Comparison Matrix */}
+      {/* Feature Comparison Matrix — centered title, region filter inside component */}
       <section className="py-16 px-4 bg-slate-50">
         <div className="mx-auto max-w-7xl">
-          <div className="mb-8">
+          <div className="text-center mb-8">
             <h2 className="text-2xl font-bold text-slate-900 mb-2">Feature Comparison Matrix</h2>
-            <p className="text-slate-500">Compare features across all {tools.length} platforms</p>
+            <p className="text-slate-500">Compare features across all platforms</p>
           </div>
           <div className="bg-white rounded-xl border border-slate-200 overflow-hidden p-4">
             <FeatureMatrix tools={tools} maxInitial={6} />
           </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-16 px-4 bg-slate-900 text-white text-center">
-        <div className="mx-auto max-w-2xl">
-          <h2 className="text-2xl sm:text-3xl font-bold mb-4">Ready to Find Your Perfect Tax Tool?</h2>
-          <p className="text-slate-400 mb-8">
-            Use our comparison tool to find the right crypto tax software based on your needs, exchanges, and budget.
-          </p>
-          <Link href="/compare">
-            <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-white">
-              Compare Tools Now
-            </Button>
-          </Link>
         </div>
       </section>
     </>

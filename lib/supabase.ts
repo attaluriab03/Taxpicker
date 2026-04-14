@@ -68,8 +68,10 @@ export type Tool = {
   tax_report_types: string[]
   pros: string[]
   cons: string[]
+  best_for: string[]
   affiliate_url: string
   rating: number | null
+  review_count?: number
   is_published: boolean
   is_featured: boolean
   is_recommended: boolean

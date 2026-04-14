@@ -1,10 +1,8 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Search, Filter, X } from 'lucide-react'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
+import { X } from 'lucide-react'
 import {
   Select,
   SelectContent,
@@ -13,118 +11,138 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
-const COUNTRIES = [
-  'United States', 'United Kingdom', 'Canada', 'Australia',
-  'Germany', 'France', 'Netherlands', 'Spain', 'Sweden',
+const REGIONS = [
+  { value: 'US', label: 'United States' },
+  { value: 'GB', label: 'United Kingdom' },
+  { value: 'CA', label: 'Canada' },
+  { value: 'AU', label: 'Australia' },
+  { value: 'DE', label: 'Germany' },
+  { value: 'FR', label: 'France' },
+  { value: 'EU', label: 'European Union' },
 ]
 
 const PRICING_OPTIONS = [
-  { value: 'all', label: 'All Pricing' },
   { value: 'free', label: 'Free' },
   { value: 'freemium', label: 'Freemium' },
   { value: 'paid', label: 'Paid' },
 ]
 
-export default function ToolFilters() {
+const FEATURES_OPTIONS = [
+  { value: 'DeFi', label: 'DeFi Support' },
+  { value: 'NFT', label: 'NFT Tracking' },
+  { value: 'Tax-Loss', label: 'Tax-Loss Harvesting' },
+  { value: 'Portfolio', label: 'Portfolio Tracking' },
+  { value: 'API', label: 'API Integrations' },
+  { value: 'TurboTax', label: 'TurboTax Integration' },
+  { value: 'CPA', label: 'CPA Export' },
+  { value: 'Mobile', label: 'Mobile App' },
+]
+
+interface ToolFiltersProps {
+  totalCount: number
+}
+
+export default function ToolFilters({ totalCount }: ToolFiltersProps) {
   const router = useRouter()
   const params = useSearchParams()
   const [isPending, startTransition] = useTransition()
 
-  const [search, setSearch] = useState(params.get('q') || '')
-  const [country, setCountry] = useState(params.get('country') || '')
-  const [pricing, setPricing] = useState(params.get('pricing') || 'all')
+  const region = params.get('region') || 'all'
+  const pricing = params.get('pricing') || 'all'
+  const features = params.get('features') || 'all'
 
-  const applyFilters = (overrides: Record<string, string> = {}) => {
+  const hasFilters = region !== 'all' || pricing !== 'all' || features !== 'all'
+
+  const push = (overrides: Record<string, string>) => {
     const p = new URLSearchParams()
-    const s = overrides.q !== undefined ? overrides.q : search
-    const c = overrides.country !== undefined ? overrides.country : country
+    const r = overrides.region !== undefined ? overrides.region : region
     const pr = overrides.pricing !== undefined ? overrides.pricing : pricing
+    const ft = overrides.features !== undefined ? overrides.features : features
 
-    if (s) p.set('q', s)
-    if (c) p.set('country', c)
+    if (r && r !== 'all') p.set('region', r)
     if (pr && pr !== 'all') p.set('pricing', pr)
+    if (ft && ft !== 'all') p.set('features', ft)
 
     startTransition(() => {
-      router.push(`/?${p.toString()}`, { scroll: false })
+      router.push(p.toString() ? `/?${p.toString()}` : '/', { scroll: false })
     })
   }
 
   const clearAll = () => {
-    setSearch('')
-    setCountry('')
-    setPricing('all')
-    startTransition(() => {
-      router.push('/', { scroll: false })
-    })
+    startTransition(() => router.push('/', { scroll: false }))
   }
 
-  const hasFilters = search || country || (pricing && pricing !== 'all')
-
   return (
-    <div className="flex flex-col sm:flex-row gap-3">
-      {/* Search */}
-      <div className="relative flex-1">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-        <Input
-          placeholder="Search tools..."
-          className="pl-9"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') applyFilters({ q: e.currentTarget.value })
-          }}
-        />
+    <div className="bg-white rounded-xl border border-slate-200 px-5 py-4">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+        {/* Filter dropdowns */}
+        <div className="flex flex-wrap gap-3 flex-1">
+          {/* Region */}
+          <Select
+            value={region}
+            onValueChange={(val) => push({ region: val })}
+          >
+            <SelectTrigger className="w-[160px] h-9 text-sm">
+              <SelectValue placeholder="Region" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Regions</SelectItem>
+              {REGIONS.map((r) => (
+                <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Pricing */}
+          <Select
+            value={pricing}
+            onValueChange={(val) => push({ pricing: val })}
+          >
+            <SelectTrigger className="w-[150px] h-9 text-sm">
+              <SelectValue placeholder="Price Range" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Pricing</SelectItem>
+              {PRICING_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Required Features */}
+          <Select
+            value={features}
+            onValueChange={(val) => push({ features: val })}
+          >
+            <SelectTrigger className="w-[190px] h-9 text-sm">
+              <SelectValue placeholder="Required Features" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Features</SelectItem>
+              {FEATURES_OPTIONS.map((f) => (
+                <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Right side: count + clear */}
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <span className="text-sm text-slate-500 whitespace-nowrap">
+            Showing <span className="font-semibold text-slate-700">{totalCount}</span> tool{totalCount !== 1 ? 's' : ''}
+            {hasFilters ? ' matching your criteria' : ''}
+          </span>
+          {hasFilters && (
+            <button
+              onClick={clearAll}
+              className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 font-medium"
+            >
+              <X className="h-3.5 w-3.5" />
+              Clear All
+            </button>
+          )}
+        </div>
       </div>
-
-      {/* Country filter */}
-      <Select
-        value={country || 'all'}
-        onValueChange={(val) => {
-          const c = val === 'all' ? '' : val
-          setCountry(c)
-          applyFilters({ country: c })
-        }}
-      >
-        <SelectTrigger className="w-full sm:w-[160px]">
-          <SelectValue placeholder="Country" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">All Countries</SelectItem>
-          {COUNTRIES.map((c) => (
-            <SelectItem key={c} value={c}>{c}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
-      {/* Pricing filter */}
-      <Select
-        value={pricing || 'all'}
-        onValueChange={(val) => {
-          setPricing(val)
-          applyFilters({ pricing: val })
-        }}
-      >
-        <SelectTrigger className="w-full sm:w-[140px]">
-          <SelectValue placeholder="Pricing" />
-        </SelectTrigger>
-        <SelectContent>
-          {PRICING_OPTIONS.map((o) => (
-            <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
-      {hasFilters && (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={clearAll}
-          className="text-slate-500 hover:text-slate-700"
-        >
-          <X className="h-4 w-4 mr-1" />
-          Clear
-        </Button>
-      )}
     </div>
   )
 }

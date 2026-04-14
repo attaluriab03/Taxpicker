@@ -2,13 +2,13 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
-import { Menu, X, Search } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
+import { Menu, X } from 'lucide-react'
+
+// Blue extracted from Figma design: #2563EB
+const BRAND_BLUE = '#2563EB'
 
 const navLinks = [
   { href: '/', label: 'Home' },
-  { href: '/compare', label: 'Compare Tools' },
   { href: '/blog', label: 'Resources' },
   { href: '/faq', label: 'FAQ' },
 ]
@@ -21,15 +21,20 @@ export default function Header() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 font-bold text-slate-900">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-white text-sm font-bold">
+          <Link href="/" className="flex items-center gap-2 font-bold">
+            <div
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-white text-sm font-bold"
+              style={{ backgroundColor: BRAND_BLUE }}
+            >
               T
             </div>
-            <span className="text-lg">Taxpicker</span>
+            <span className="text-lg" style={{ color: BRAND_BLUE }}>
+              Taxpicker
+            </span>
           </Link>
 
           {/* Desktop nav */}
-          <nav className="hidden md:flex items-center gap-6">
+          <nav className="hidden md:flex items-center gap-8">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
@@ -41,24 +46,14 @@ export default function Header() {
             ))}
           </nav>
 
-          {/* Right actions */}
-          <div className="flex items-center gap-3">
-            <Link
-              href="/compare"
-              className="hidden md:inline-flex"
-            >
-              <Button variant="default" size="sm" className="bg-slate-900 hover:bg-slate-800">
-                Get Started
-              </Button>
-            </Link>
-            <button
-              className="md:hidden p-2 rounded-lg hover:bg-slate-100"
-              onClick={() => setMobileOpen(!mobileOpen)}
-              aria-label="Toggle menu"
-            >
-              {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </button>
-          </div>
+          {/* Mobile hamburger */}
+          <button
+            className="md:hidden p-2 rounded-lg hover:bg-slate-100"
+            onClick={() => setMobileOpen(!mobileOpen)}
+            aria-label="Toggle menu"
+          >
+            {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
         </div>
       </div>
 
@@ -76,13 +71,6 @@ export default function Header() {
                 {link.label}
               </Link>
             ))}
-            <div className="pt-2 border-t border-slate-200 mt-2">
-              <Link href="/compare" onClick={() => setMobileOpen(false)}>
-                <Button className="w-full bg-slate-900 hover:bg-slate-800" size="sm">
-                  Get Started
-                </Button>
-              </Link>
-            </div>
           </nav>
         </div>
       )}
