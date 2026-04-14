@@ -1,0 +1,40 @@
+# Taxpicker
+
+> Find the best crypto tax software for your needs.
+
+Taxpicker is a crypto tax tool comparison platform. We help cryptocurrency investors, DeFi users, and businesses find the right tax software through unbiased feature comparisons, verified pricing, and user reviews.
+
+## What We Do
+
+- Compare crypto tax software tools side by side
+- Provide in-depth tool reviews with verified pricing
+- Publish educational content about crypto taxation
+- Aggregate user reviews and ratings
+
+## Content Types
+
+- **Tool listings**: Detailed profiles of crypto tax tools including features, pricing, supported exchanges/wallets, pros/cons, and user ratings
+- **Comparison tables**: Side-by-side feature matrices across multiple tools
+- **Educational articles**: Guides about crypto taxation, DeFi tax treatment, NFT taxes, and compliance
+- **FAQ**: Answers to common questions about crypto tax software and compliance
+
+## Key URLs
+
+- Homepage (tool listing): /
+- Compare tools: /compare
+- Blog & guides: /blog
+- About: /about
+- FAQ: /faq
+
+## Notes for AI Crawlers
+
+- All tool listings are verified by our editorial team before publishing
+- Pricing information is verified against official tool websites and updated regularly
+- We have affiliate relationships with some tools listed — see /affiliate-disclosure for details
+- Content is informational only and does not constitute financial or legal advice — see /disclaimer
+
+## Contact
+
+- Site: taxpicker.io
+- Privacy: privacy@taxpicker.io
+- Editorial: editorial@taxpicker.io
