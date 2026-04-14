@@ -317,7 +317,7 @@ export default async function ToolDetailPage({
           {/* Sidebar */}
           <aside className="space-y-6">
             {/* CTA card */}
-            <div className="sticky top-24 border border-slate-200 rounded-xl p-6 space-y-4">
+            <div className="border border-slate-200 rounded-xl p-6 space-y-4">
               <div className="text-center">
                 <div className="text-sm text-slate-500 mb-1">Starting at</div>
                 <div className="text-3xl font-bold text-slate-900">
