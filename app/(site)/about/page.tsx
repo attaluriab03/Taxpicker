@@ -121,7 +121,7 @@ export default function AboutPage() {
       <section className="bg-slate-900 text-white rounded-2xl p-8 text-center">
         <h2 className="text-2xl font-bold mb-3">Ready to Find Your Perfect Tax Tool?</h2>
         <p className="text-slate-400 mb-6">Use our comparison tool to find the right crypto tax software for your needs.</p>
-        <Link href="/compare">
+        <Link href="/">
           <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-white">
             Compare Tools Now
           </Button>
