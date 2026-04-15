@@ -329,16 +329,6 @@ export default async function ToolDetailPage({
                 </div>
               </div>
               <AffiliateButton tool={tool} />
-              {tool.website_url && (
-                <a
-                  href={tool.website_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-1.5 text-sm text-slate-500 hover:text-slate-700"
-                >
-                  Visit Website <ExternalLink className="h-3 w-3" />
-                </a>
-              )}
             </div>
 
             {/* Best for */}

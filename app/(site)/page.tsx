@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Suspense } from 'react'
+
 import { Star } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import type { Tool } from '@/lib/supabase'
@@ -23,6 +23,8 @@ async function getTools(searchParams: {
   region?: string
   pricing?: string
   features?: string
+  volume?: string
+  userType?: string
 }): Promise<Tool[]> {
   let query = supabase
     .from('tools')
@@ -39,8 +41,12 @@ async function getTools(searchParams: {
   if (searchParams.pricing && searchParams.pricing !== 'all') {
     query = query.eq('pricing_type', searchParams.pricing)
   }
-  if (searchParams.features && searchParams.features !== 'all') {
-    query = query.contains('features', [searchParams.features])
+  if (searchParams.features) {
+    const featureList = searchParams.features.split(',').filter(Boolean)
+    for (const feat of featureList) {
+      // JSONB @> operator requires JSON.stringify for proper comparison
+      query = query.filter('features', 'cs', JSON.stringify([feat.trim()]))
+    }
   }
 
   const { data, error } = await query
@@ -48,7 +54,38 @@ async function getTools(searchParams: {
     console.error('Failed to fetch tools:', error)
     return []
   }
-  return data as Tool[]
+
+  let tools = data as Tool[]
+
+  // Client-side filtering for volume (no dedicated DB column — infer from pricing_details)
+  if (searchParams.volume && searchParams.volume !== 'all') {
+    tools = tools.filter((t) => {
+      const details = (t.pricing_details || '').toLowerCase()
+      switch (searchParams.volume) {
+        case 'low':    return details.includes('100') || details.includes('25') || details.includes('50')
+        case 'medium': return details.includes('1,000') || details.includes('1000') || details.includes('500')
+        case 'high':   return details.includes('10,000') || details.includes('10000') || details.includes('5,000')
+        case 'unlimited': return details.includes('unlimited') || details.includes('∞')
+        default: return true
+      }
+    })
+  }
+
+  // Client-side filtering for user type (infer from best_for array)
+  if (searchParams.userType && searchParams.userType !== 'both') {
+    tools = tools.filter((t) => {
+      const bestFor = (t.best_for || []).map((b: string) => b.toLowerCase())
+      if (searchParams.userType === 'business') {
+        return bestFor.some((b: string) => b.includes('business') || b.includes('enterprise') || b.includes('professional'))
+      }
+      if (searchParams.userType === 'individual') {
+        return bestFor.some((b: string) => b.includes('individual') || b.includes('trader') || b.includes('investor') || b.includes('beginner'))
+      }
+      return true
+    })
+  }
+
+  return tools
 }
 
 function HomepageJsonLd({ tools }: { tools: Tool[] }) {
@@ -85,7 +122,7 @@ function HomepageJsonLd({ tools }: { tools: Tool[] }) {
 
 const HERO_STATS = [
   { value: '50K+', label: 'Users Helped' },
-  { value: '6', label: 'Platforms Reviewed' },
+  { value: '10+', label: 'Platforms Reviewed' },
   { value: '50+', label: 'Evaluation Criteria' },
   { value: '15+', label: 'Countries Supported' },
 ]
@@ -122,12 +159,28 @@ const whyItems = [
 ]
 
 interface HomePageProps {
-  searchParams: Promise<{ region?: string; pricing?: string; features?: string }>
+  searchParams: Promise<{ region?: string; pricing?: string; features?: string; volume?: string; userType?: string }>
+}
+
+async function getAllTools(): Promise<Tool[]> {
+  const { data, error } = await supabase
+    .from('tools')
+    .select('*')
+    .eq('is_published', true)
+    .order('is_recommended', { ascending: false })
+    .order('is_featured', { ascending: false })
+    .order('rating', { ascending: false })
+    .order('created_at', { ascending: false })
+  if (error) {
+    console.error('Failed to fetch all tools:', error)
+    return []
+  }
+  return data as Tool[]
 }
 
 export default async function HomePage({ searchParams }: HomePageProps) {
   const sp = await searchParams
-  const tools = await getTools(sp)
+  const [tools, allTools] = await Promise.all([getTools(sp), getAllTools()])
 
   const initialTools = tools.slice(0, INITIAL_COUNT)
   const extraTools = tools.slice(INITIAL_COUNT)
@@ -178,20 +231,30 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       {/* Tool listing */}
       <section className="bg-slate-50 py-14 px-4">
         <div className="mx-auto max-w-7xl">
-          {/* Filters */}
-          <div className="mb-6">
-            <Suspense fallback={<div className="h-20 bg-white rounded-xl border border-slate-200 animate-pulse" />}>
-              <ToolFilters totalCount={tools.length} />
-            </Suspense>
-          </div>
+          {/* Filter + column header panel */}
+          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm mb-3">
+            {/* "Refine Results" heading */}
+            <div className="px-6 pt-5 pb-1">
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Refine Results</p>
+              <ToolFilters
+                key={[sp.region, sp.pricing, sp.volume, sp.userType, sp.features].join('|')}
+                totalCount={tools.length}
+                initialRegion={sp.region || 'all'}
+                initialPricing={sp.pricing || 'all'}
+                initialVolume={sp.volume || 'all'}
+                initialUserType={sp.userType || 'both'}
+                initialFeatures={sp.features ? sp.features.split(',').filter(Boolean) : []}
+              />
+            </div>
 
-          {/* Table column headers */}
-          <div className="hidden lg:grid grid-cols-[1fr_140px_140px_200px_210px] gap-4 px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">
-            <span>Platform</span>
-            <span className="text-center">Rating</span>
-            <span className="text-center">Starting Price</span>
-            <span>Best For</span>
-            <span className="text-right">Actions</span>
+            {/* Column headers — visually connected to the cards below */}
+            <div className="hidden lg:grid grid-cols-[1fr_140px_140px_200px_210px] gap-4 px-6 py-3 text-sm font-bold text-slate-600 uppercase tracking-wide border-t border-slate-100 bg-slate-50 rounded-b-2xl">
+              <span>Platform</span>
+              <span className="text-center">Rating</span>
+              <span className="text-center">Starting Price</span>
+              <span>Best For</span>
+              <span className="text-right">Actions</span>
+            </div>
           </div>
 
           {tools.length === 0 ? (
@@ -200,7 +263,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               <p className="text-sm mt-1">Try adjusting your filters.</p>
             </div>
           ) : (
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-3">
               {initialTools.map((tool, i) => (
                 <ToolCard key={tool.id} tool={tool} rank={i + 1} />
               ))}
@@ -244,7 +307,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             <p className="text-lg text-slate-500">Compare features across all platforms</p>
           </div>
           <div className="bg-white rounded-xl border border-slate-200 overflow-hidden p-6">
-            <FeatureMatrix tools={tools} maxInitial={6} />
+            <FeatureMatrix tools={allTools} maxInitial={6} />
           </div>
         </div>
       </section>

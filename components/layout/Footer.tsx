@@ -4,22 +4,14 @@ import Link from 'next/link'
 import { Twitter, Github, Linkedin } from 'lucide-react'
 
 const productLinks = [
-  { href: '/compare', label: 'Compare Tools' },
+  { href: '/', label: 'Compare Tools' },
   { href: '/blog', label: 'Tax Guides' },
-  { href: '/blog?tag=defi', label: 'DeFi Guide' },
-  { href: '/faq', label: 'FAQ' },
-]
-
-const resourceLinks = [
-  { href: '/blog', label: 'Tax Guide' },
-  { href: '/blog?tag=defi', label: 'DeFi Guide' },
-  { href: '/blog?tag=nft', label: 'NFT Guide' },
   { href: '/faq', label: 'FAQ' },
 ]
 
 const companyLinks = [
   { href: '/about', label: 'About' },
-  { href: '/contact', label: 'Contact' },
+  { href: '/faq', label: 'Contact' },
   { href: '/admin', label: 'Admin' },
 ]
 
@@ -42,7 +34,7 @@ export default function Footer() {
   return (
     <footer className="bg-slate-900 text-slate-300">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
             <Link href="/" className="flex items-center gap-2 font-bold text-white mb-4">
@@ -72,21 +64,7 @@ export default function Footer() {
             <h3 className="text-sm font-semibold text-white mb-4">Product</h3>
             <ul className="space-y-2">
               {productLinks.map((link) => (
-                <li key={link.href}>
-                  <Link href={link.href} className="text-sm text-slate-400 hover:text-white transition-colors">
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Resources */}
-          <div>
-            <h3 className="text-sm font-semibold text-white mb-4">Resources</h3>
-            <ul className="space-y-2">
-              {resourceLinks.map((link) => (
-                <li key={link.href}>
+                <li key={link.href + link.label}>
                   <Link href={link.href} className="text-sm text-slate-400 hover:text-white transition-colors">
                     {link.label}
                   </Link>

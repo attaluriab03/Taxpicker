@@ -80,7 +80,7 @@ export default function FeatureMatrix({ tools, maxInitial = 6 }: FeatureMatrixPr
   const regionFiltered =
     selectedRegions.length === 0
       ? tools
-      : tools.filter((tool) => selectedRegions.some((r) => toolSupportsRegion(tool, r)))
+      : tools.filter((tool) => selectedRegions.every((r) => toolSupportsRegion(tool, r)))
 
   // Sort by feature count descending when regions are selected
   const sortedFiltered = selectedRegions.length > 0
