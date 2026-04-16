@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { createServiceClient } from '@/lib/supabase'
 
 export async function POST(req: NextRequest) {
@@ -16,6 +17,11 @@ export async function POST(req: NextRequest) {
       .single()
 
     if (error) throw error
+
+    revalidatePath('/')
+    revalidatePath('/admin')
+    revalidatePath('/admin/tools')
+    revalidatePath('/tools/[slug]', 'page')
 
     return NextResponse.json(data)
   } catch (err: any) {

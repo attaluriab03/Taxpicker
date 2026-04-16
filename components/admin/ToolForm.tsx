@@ -58,7 +58,7 @@ function slugify(str: string) {
 
 export default function ToolForm({ initialData, toolId }: ToolFormProps) {
   const router = useRouter()
-  const [isPending, startTransition] = useTransition()
+  const [, startTransition] = useTransition()
   const [saving, setSaving] = useState(false)
   const [verificationPassed, setVerificationPassed] = useState(false)
 
@@ -107,6 +107,11 @@ export default function ToolForm({ initialData, toolId }: ToolFormProps) {
       const payload = {
         ...form,
         slug: slugify(form.name),
+        // Normalize optional string fields: send null instead of empty strings
+        description: form.description || null,
+        logo_url: form.logo_url || null,
+        website_url: form.website_url || null,
+        pricing_details: form.pricing_details || null,
         price_from: form.price_from ? parseFloat(form.price_from) : null,
         is_published: publish,
         features: form.features,
@@ -133,7 +138,10 @@ export default function ToolForm({ initialData, toolId }: ToolFormProps) {
           ? `${form.name} is now live on the site.`
           : `${form.name} saved as draft.`,
       })
-      startTransition(() => router.push('/admin/tools'))
+      router.refresh()
+      startTransition(() => {
+        router.push('/admin/tools')
+      })
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Error', description: err.message })
     } finally {

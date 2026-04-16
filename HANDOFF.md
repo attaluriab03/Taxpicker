@@ -116,7 +116,7 @@ Browser → Next.js App Router (Vercel)
 ## 6. Admin Panel Guide
 
 ### Accessing the admin panel
-Navigate to `/admin` in your browser. The admin panel is currently open (no authentication enforced at the route level — see Security Notes).
+Navigate to `/admin/login` in your browser and sign in with your admin credentials. Unauthenticated visitors are automatically redirected to the login page.
 
 ### Adding a new tool
 1. Go to `/admin/tools/new`
@@ -160,21 +160,47 @@ Go to `/admin/clicks` to see all affiliate link clicks, including timestamps, IP
 
 ---
 
-## 8. Key Security Notes
+## 8. Admin Authentication
 
+### Overview
+The admin panel at `/admin` is protected by Supabase Auth. Only manually created users can log in — there is no public signup. Every request is validated server-side using `getUser()`.
+
+### Creating a New Admin User
+1. Go to **Supabase Dashboard → Authentication → Users → Add User**
+2. Enter the email address and a strong password
+3. Tick **"Auto Confirm User"**
+4. Click **Create User**
+5. The user can now log in at `/admin/login`
+
+### Deleting an Admin User
+1. Go to **Supabase Dashboard → Authentication → Users**
+2. Click the user row to open it
+3. Click **Delete User**
+4. The session is immediately invalidated — they cannot access the admin panel again
+
+### Recommended Credential Handoff Flow
+1. During build and demo: developer uses a placeholder admin account (e.g. `admin@taxpicker.com`)
+2. Before final handoff: create a new user with the client's real email address
+3. Have the client test login at `/admin/login`
+4. Once confirmed working, delete the developer's placeholder account
+5. Client now has sole admin access
+
+### Resetting an Admin Password
+1. **Supabase Dashboard → Authentication → Users → click the user**
+2. Click **Send Password Recovery** to email a reset link
+3. Or delete and recreate the user with a new password for private admin accounts
+
+### Security Notes
 - `ANTHROPIC_API_KEY` must never be committed to Git
 - `SUPABASE_SECRET_KEY` must never be in client-side code
 - All API keys live only in the hosting platform's environment variables (Vercel)
 - Rotate any key immediately if it is ever accidentally exposed
-- RLS (Row Level Security) policies in Supabase protect all data at the database level
-- For full admin panel protection, add Supabase Auth middleware to the `/(admin)` route group
-
-### Recommended: Add Admin Authentication
-The admin panel at `/admin` is currently accessible without authentication. To protect it, add Supabase Auth:
-1. Enable email/password auth in Supabase → Authentication
-2. Create an admin user
-3. Add Next.js middleware to check `supabase.auth.getSession()` for all `/admin/*` routes
-4. Redirect unauthenticated requests to a login page
+- RLS policies in Supabase protect all data at the database level
+- Never share admin credentials between people — each person gets their own account
+- Public signups are disabled — admin users can only be created in the Supabase dashboard
+- Sessions are validated server-side on every request using `getUser()`, not `getSession()`
+- Rotating Supabase keys in Vercel environment variables will immediately invalidate all active sessions
+- Change the admin password immediately after receiving it from the developer
 
 ---
 

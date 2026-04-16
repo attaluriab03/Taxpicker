@@ -40,7 +40,7 @@ export default function ArticleCard({ article }: ArticleCardProps) {
           </div>
         )}
         <h2 className="text-base font-semibold text-slate-900 mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors">
-          <Link href={`/blog/${article.slug}`}>
+          <Link href={`/blog/${article.slug}`} prefetch={true}>
             {article.title}
           </Link>
         </h2>

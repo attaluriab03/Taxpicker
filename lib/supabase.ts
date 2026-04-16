@@ -1,13 +1,20 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+import { createBrowserClient } from '@supabase/ssr'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
+// Browser client for use in client components (handles auth sessions)
+export const createClient = () =>
+  createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
+  )
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Legacy singleton — kept for client components that import { supabase }
+export const supabase = createClient()
 
-// Server-side client with service role (for admin operations)
+// Server-side service role client for admin mutations/data-fetching in API routes
+// This uses the secret key and bypasses RLS — never expose to the browser
 export function createServiceClient() {
-  return createClient(
+  return createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SECRET_KEY!,
     {

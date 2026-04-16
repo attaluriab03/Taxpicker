@@ -112,7 +112,7 @@ export default function ToolCard({ tool, rank }: ToolCardProps) {
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-1.5 mb-1">
-              <Link href={`/tools/${tool.slug}`} className="font-semibold text-slate-900 hover:text-blue-600 transition-colors">
+              <Link href={`/tools/${tool.slug}`} prefetch={true} className="font-semibold text-slate-900 hover:text-blue-600 transition-colors">
                 {tool.name}
               </Link>
               {tool.is_recommended && (
@@ -167,7 +167,7 @@ export default function ToolCard({ tool, rank }: ToolCardProps) {
             <ExternalLink className="h-3.5 w-3.5" />
           </a>
           <Link
-            href={`/tools/${tool.slug}`}
+            href={`/tools/${tool.slug}`} prefetch={true}
             className="flex-1 inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-medium px-4 py-2.5 transition-colors"
           >
             View Details
@@ -198,7 +198,7 @@ export default function ToolCard({ tool, rank }: ToolCardProps) {
             {/* Name + badge */}
             <div className="flex flex-wrap items-center gap-2 mb-1">
               <Link
-                href={`/tools/${tool.slug}`}
+                href={`/tools/${tool.slug}`} prefetch={true}
                 className="font-bold text-base text-slate-900 hover:text-blue-600 transition-colors"
               >
                 {tool.name}
@@ -290,7 +290,7 @@ export default function ToolCard({ tool, rank }: ToolCardProps) {
             <ExternalLink className="h-4 w-4 flex-shrink-0" />
           </a>
           <Link
-            href={`/tools/${tool.slug}`}
+            href={`/tools/${tool.slug}`} prefetch={true}
             className="w-full inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-sm font-medium px-5 py-2.5 transition-colors"
           >
             View Details

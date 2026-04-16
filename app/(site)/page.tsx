@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import type { Metadata } from 'next'
 
 import { Star } from 'lucide-react'
@@ -20,7 +22,7 @@ const INITIAL_COUNT = 6
 const BRAND_BLUE = '#2563EB'
 
 async function getTools(searchParams: {
-  region?: string
+  regions?: string
   pricing?: string
   features?: string
   volume?: string
@@ -35,8 +37,12 @@ async function getTools(searchParams: {
     .order('rating', { ascending: false })
     .order('created_at', { ascending: false })
 
-  if (searchParams.region && searchParams.region !== 'all') {
-    query = query.contains('supported_countries', [searchParams.region])
+  if (searchParams.regions) {
+    const regionList = searchParams.regions.split(',').filter(Boolean)
+    // AND logic — each selected region must be in supported_countries
+    for (const region of regionList) {
+      query = query.contains('supported_countries', [region])
+    }
   }
   if (searchParams.pricing && searchParams.pricing !== 'all') {
     query = query.eq('pricing_type', searchParams.pricing)
@@ -159,7 +165,7 @@ const whyItems = [
 ]
 
 interface HomePageProps {
-  searchParams: Promise<{ region?: string; pricing?: string; features?: string; volume?: string; userType?: string }>
+  searchParams: Promise<{ regions?: string; pricing?: string; features?: string; volume?: string; userType?: string }>
 }
 
 async function getAllTools(): Promise<Tool[]> {
@@ -237,9 +243,9 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             <div className="px-6 pt-5 pb-1">
               <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Refine Results</p>
               <ToolFilters
-                key={[sp.region, sp.pricing, sp.volume, sp.userType, sp.features].join('|')}
+                key={[sp.regions, sp.pricing, sp.volume, sp.userType, sp.features].join('|')}
                 totalCount={tools.length}
-                initialRegion={sp.region || 'all'}
+                initialRegions={sp.regions ? sp.regions.split(',').filter(Boolean) : []}
                 initialPricing={sp.pricing || 'all'}
                 initialVolume={sp.volume || 'all'}
                 initialUserType={sp.userType || 'both'}

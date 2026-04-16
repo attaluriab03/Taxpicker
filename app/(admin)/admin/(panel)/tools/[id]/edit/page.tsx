@@ -1,12 +1,12 @@
 import { notFound } from 'next/navigation'
-import { createServiceClient } from '@/lib/supabase'
+import { createSupabaseServer } from '@/lib/supabase-server'
 import type { Tool } from '@/lib/supabase'
 import ToolForm from '@/components/admin/ToolForm'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 
 async function getTool(id: string): Promise<Tool | null> {
-  const supabase = createServiceClient()
+  const supabase = await createSupabaseServer()
   const { data } = await supabase.from('tools').select('*').eq('id', id).single()
   return data as Tool | null
 }

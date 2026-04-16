@@ -52,6 +52,40 @@ export async function generateStaticParams() {
   return (data || []).map((a) => ({ slug: a.slug }))
 }
 
+function BreadcrumbJsonLd({ article }: { article: Article }) {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://taxpicker.io'
+  const schema = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      {
+        '@type': 'ListItem',
+        position: 1,
+        name: 'Home',
+        item: siteUrl,
+      },
+      {
+        '@type': 'ListItem',
+        position: 2,
+        name: 'Tax Guides',
+        item: `${siteUrl}/blog`,
+      },
+      {
+        '@type': 'ListItem',
+        position: 3,
+        name: article.title || '',
+        item: `${siteUrl}/blog/${article.slug}`,
+      },
+    ],
+  }
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+    />
+  )
+}
+
 function ArticleJsonLd({ article }: { article: Article }) {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://taxpicker.io'
   const schema = {
@@ -119,6 +153,7 @@ export default async function ArticlePage({
   return (
     <>
       <ArticleJsonLd article={article} />
+      <BreadcrumbJsonLd article={article} />
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
         <div className="mb-6">

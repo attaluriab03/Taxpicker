@@ -1,12 +1,12 @@
 import { notFound } from 'next/navigation'
-import { createServiceClient } from '@/lib/supabase'
+import { createSupabaseServer } from '@/lib/supabase-server'
 import type { Article } from '@/lib/supabase'
 import ArticleForm from '@/components/admin/ArticleForm'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 
 async function getArticle(id: string): Promise<Article | null> {
-  const supabase = createServiceClient()
+  const supabase = await createSupabaseServer()
   const { data } = await supabase.from('articles').select('*').eq('id', id).single()
   return data as Article | null
 }

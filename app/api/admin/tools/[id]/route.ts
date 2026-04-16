@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { createServiceClient } from '@/lib/supabase'
 
 export async function PUT(
@@ -22,6 +23,11 @@ export async function PUT(
 
     if (error) throw error
 
+    revalidatePath('/')
+    revalidatePath('/admin')
+    revalidatePath('/admin/tools')
+    revalidatePath('/tools/[slug]', 'page')
+
     return NextResponse.json(data)
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 })
@@ -38,6 +44,11 @@ export async function DELETE(
 
     const { error } = await supabase.from('tools').delete().eq('id', id)
     if (error) throw error
+
+    revalidatePath('/')
+    revalidatePath('/admin')
+    revalidatePath('/admin/tools')
+    revalidatePath('/tools/[slug]', 'page')
 
     return NextResponse.json({ ok: true })
   } catch (err: any) {

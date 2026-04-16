@@ -1,4 +1,6 @@
-import { createServiceClient } from '@/lib/supabase'
+export const dynamic = 'force-dynamic'
+
+import { createSupabaseServer } from '@/lib/supabase-server'
 import type { Article } from '@/lib/supabase'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -7,7 +9,7 @@ import { Plus, Edit, Calendar, User } from 'lucide-react'
 import AdminArticleActions from '@/components/admin/AdminArticleActions'
 
 async function getArticles(): Promise<Article[]> {
-  const supabase = createServiceClient()
+  const supabase = await createSupabaseServer()
   const { data } = await supabase
     .from('articles')
     .select('*')

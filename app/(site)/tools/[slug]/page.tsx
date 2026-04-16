@@ -70,6 +70,40 @@ export async function generateStaticParams() {
   return (data || []).map((t) => ({ slug: t.slug }))
 }
 
+function BreadcrumbJsonLd({ tool }: { tool: Tool }) {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://taxpicker.io'
+  const schema = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      {
+        '@type': 'ListItem',
+        position: 1,
+        name: 'Home',
+        item: siteUrl,
+      },
+      {
+        '@type': 'ListItem',
+        position: 2,
+        name: 'Tools',
+        item: `${siteUrl}/#tools`,
+      },
+      {
+        '@type': 'ListItem',
+        position: 3,
+        name: tool.name || '',
+        item: `${siteUrl}/tools/${tool.slug}`,
+      },
+    ],
+  }
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+    />
+  )
+}
+
 function ToolJsonLd({ tool }: { tool: Tool }) {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://taxpicker.io'
   const schema = {
@@ -129,6 +163,7 @@ export default async function ToolDetailPage({
   return (
     <>
       <ToolJsonLd tool={tool} />
+      <BreadcrumbJsonLd tool={tool} />
       <AffiliateBanner />
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">

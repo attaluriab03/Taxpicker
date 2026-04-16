@@ -34,15 +34,15 @@ export default function AutoFillButton({ name, websiteUrl, onFill }: AutoFillBut
       const res = await fetch('/api/admin/autofill-tool', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, websiteUrl }),
+        body: JSON.stringify({ name, url: websiteUrl }),
       })
 
       if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error || 'Auto-fill failed')
+        const json = await res.json()
+        throw new Error(json.error || 'Auto-fill failed')
       }
 
-      const data: AutoFillResult = await res.json()
+      const { data }: { data: AutoFillResult } = await res.json()
 
       onFill({
         description: data.description,

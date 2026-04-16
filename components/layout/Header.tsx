@@ -49,6 +49,7 @@ export default function Header() {
               <Link
                 key={link.href}
                 href={link.href}
+                prefetch={true}
                 className="text-base font-medium text-slate-600 hover:text-slate-900 transition-colors"
               >
                 {link.label}

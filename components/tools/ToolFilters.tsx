@@ -57,7 +57,7 @@ const USER_TYPE_OPTIONS = [
 
 interface ToolFiltersProps {
   totalCount: number
-  initialRegion?: string
+  initialRegions?: string[]
   initialPricing?: string
   initialVolume?: string
   initialUserType?: string
@@ -74,13 +74,15 @@ function FilterLabel({ label }: { label: string }) {
   )
 }
 
-// ─── Multi-select dropdown for features ────────────────────────────────────
+// ─── Shared multi-select dropdown ──────────────────────────────────────────
 interface MultiSelectProps {
   selected: string[]
+  options: { value: string; label: string }[]
+  placeholder: string
   onChange: (values: string[]) => void
 }
 
-function FeaturesMultiSelect({ selected, onChange }: MultiSelectProps) {
+function MultiSelect({ selected, options, placeholder, onChange }: MultiSelectProps) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -110,10 +112,10 @@ function FeaturesMultiSelect({ selected, onChange }: MultiSelectProps) {
     }
   }
 
-  const selectAll = () => onChange(FEATURES_OPTIONS.map((f) => f.value))
+  const selectAll = () => onChange(allSelected ? [] : options.map((o) => o.value))
   const clearAll = () => onChange([])
 
-  const allSelected = selected.length === FEATURES_OPTIONS.length
+  const allSelected = selected.length === options.length
   const hasSelection = selected.length > 0
 
   return (
@@ -130,7 +132,7 @@ function FeaturesMultiSelect({ selected, onChange }: MultiSelectProps) {
         )}
       >
         <span className={cn('truncate', hasSelection ? 'text-slate-900' : 'text-slate-400')}>
-          {hasSelection ? 'Select features...' : 'Select features...'}
+          {placeholder}
         </span>
         <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
           {hasSelection && (
@@ -152,7 +154,7 @@ function FeaturesMultiSelect({ selected, onChange }: MultiSelectProps) {
 
       {/* Dropdown panel */}
       {open && (
-        <div className="absolute left-0 top-full mt-1 z-50 w-64 rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden">
+        <div className="absolute left-0 top-full mt-1 z-50 w-56 rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden">
           {/* Select all */}
           <button
             type="button"
@@ -162,20 +164,18 @@ function FeaturesMultiSelect({ selected, onChange }: MultiSelectProps) {
             <span
               className={cn(
                 'flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border transition-colors',
-                allSelected
-                  ? 'border-blue-600 text-white'
-                  : 'border-slate-300'
+                allSelected ? 'border-blue-600' : 'border-slate-300'
               )}
               style={allSelected ? { backgroundColor: BRAND_BLUE } : {}}
             >
-              {allSelected && <Check className="h-2.5 w-2.5" strokeWidth={3} />}
+              {allSelected && <Check className="h-2.5 w-2.5 text-white" strokeWidth={3} />}
             </span>
             <span className="font-medium">Select all</span>
           </button>
 
-          {/* Feature options */}
+          {/* Options */}
           <div className="max-h-60 overflow-y-auto py-1">
-            {FEATURES_OPTIONS.map((opt) => {
+            {options.map((opt) => {
               const checked = selected.includes(opt.value)
               return (
                 <button
@@ -184,9 +184,7 @@ function FeaturesMultiSelect({ selected, onChange }: MultiSelectProps) {
                   onClick={() => toggle(opt.value)}
                   className={cn(
                     'flex w-full items-center gap-2.5 px-3 py-2.5 text-sm text-left transition-colors',
-                    checked
-                      ? 'bg-blue-50 text-blue-900'
-                      : 'text-slate-700 hover:bg-slate-50'
+                    checked ? 'bg-blue-50 text-blue-900' : 'text-slate-700 hover:bg-slate-50'
                   )}
                 >
                   <span
@@ -196,9 +194,7 @@ function FeaturesMultiSelect({ selected, onChange }: MultiSelectProps) {
                     )}
                     style={checked ? { backgroundColor: BRAND_BLUE } : {}}
                   >
-                    {checked && (
-                      <Check className="h-2.5 w-2.5 text-white" strokeWidth={3} />
-                    )}
+                    {checked && <Check className="h-2.5 w-2.5 text-white" strokeWidth={3} />}
                   </span>
                   <span>{opt.label}</span>
                 </button>
@@ -223,7 +219,7 @@ function FeaturesMultiSelect({ selected, onChange }: MultiSelectProps) {
 // ─── Main filter component ──────────────────────────────────────────────────
 export default function ToolFilters({
   totalCount,
-  initialRegion = 'all',
+  initialRegions = [],
   initialPricing = 'all',
   initialVolume = 'all',
   initialUserType = 'both',
@@ -234,25 +230,25 @@ export default function ToolFilters({
 
   // Local state provides immediate UI feedback while the server re-renders in the background.
   // Props are the authoritative server values; local state tracks optimistic updates.
-  const [region, setRegion] = useState(initialRegion)
+  const [selectedRegions, setRegions] = useState<string[]>(initialRegions)
   const [pricing, setPricing] = useState(initialPricing)
   const [volume, setVolume] = useState(initialVolume)
   const [userType, setUserType] = useState(initialUserType)
   const [selectedFeatures, setFeatures] = useState<string[]>(initialFeatures)
 
   const hasFilters =
-    region !== 'all' || pricing !== 'all' || selectedFeatures.length > 0 ||
+    selectedRegions.length > 0 || pricing !== 'all' || selectedFeatures.length > 0 ||
     volume !== 'all' || userType !== 'both'
 
   function pushParams(overrides: {
-    region?: string
+    regions?: string[]
     pricing?: string
     features?: string[]
     volume?: string
     userType?: string
   }) {
     // Update local state immediately so UI reflects the change without waiting for navigation
-    if (overrides.region !== undefined) setRegion(overrides.region)
+    if (overrides.regions !== undefined) setRegions(overrides.regions)
     if (overrides.pricing !== undefined) setPricing(overrides.pricing)
     if (overrides.volume !== undefined) setVolume(overrides.volume)
     if (overrides.userType !== undefined) setUserType(overrides.userType)
@@ -260,13 +256,13 @@ export default function ToolFilters({
 
     const p = new URLSearchParams()
 
-    const r = overrides.region !== undefined ? overrides.region : region
+    const rg = overrides.regions !== undefined ? overrides.regions : selectedRegions
     const pr = overrides.pricing !== undefined ? overrides.pricing : pricing
     const ft = overrides.features !== undefined ? overrides.features : selectedFeatures
     const vol = overrides.volume !== undefined ? overrides.volume : volume
     const ut = overrides.userType !== undefined ? overrides.userType : userType
 
-    if (r && r !== 'all') p.set('region', r)
+    if (rg.length > 0) p.set('regions', rg.join(','))
     if (pr && pr !== 'all') p.set('pricing', pr)
     if (ft.length > 0) p.set('features', ft.join(','))
     if (vol && vol !== 'all') p.set('volume', vol)
@@ -278,7 +274,7 @@ export default function ToolFilters({
   }
 
   const clearAll = () => {
-    setRegion('all')
+    setRegions([])
     setPricing('all')
     setVolume('all')
     setUserType('both')
@@ -289,20 +285,15 @@ export default function ToolFilters({
   return (
     <div className="pb-4">
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-5">
-        {/* Region */}
+        {/* Region — multi-select with AND logic */}
         <div>
           <FilterLabel label="Region" />
-          <Select value={region} onValueChange={(val) => pushParams({ region: val })}>
-            <SelectTrigger className="h-11 text-sm border-slate-200 w-full">
-              <SelectValue placeholder="Select regions..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Select regions...</SelectItem>
-              {REGIONS.map((r) => (
-                <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <MultiSelect
+            selected={selectedRegions}
+            options={REGIONS}
+            placeholder="Select regions..."
+            onChange={(vals) => pushParams({ regions: vals })}
+          />
         </div>
 
         {/* Trading Volume */}
@@ -356,8 +347,10 @@ export default function ToolFilters({
         {/* Required Features — multi-select */}
         <div>
           <FilterLabel label="Required Features" />
-          <FeaturesMultiSelect
+          <MultiSelect
             selected={selectedFeatures}
+            options={FEATURES_OPTIONS}
+            placeholder="Select features..."
             onChange={(vals) => pushParams({ features: vals })}
           />
         </div>
