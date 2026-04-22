@@ -12,7 +12,7 @@ const productLinks = [
 const companyLinks = [
   { href: '/about', label: 'About' },
   { href: '/faq', label: 'Contact' },
-  { href: '/admin', label: 'Admin' },
+  // { href: '/admin', label: 'Admin' }, remove Admin link from public-facing website, create subdomain
 ]
 
 const complianceLinks = [
