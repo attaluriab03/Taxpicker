@@ -139,6 +139,8 @@ Navigate to `/admin/login` in your browser and sign in with your admin credentia
 3. Write content in Markdown format
 4. Click **Save Draft** or **Publish**
 
+**Publish/unpublish from the articles list:** The articles table at `/admin/articles` shows each article's status (Draft, Scheduled, Published). Use the action buttons to publish a draft (sets `published_at` to now), unpublish a live article (clears `published_at`), or delete. Changes appear on the public `/blog` page immediately — no cache delay.
+
 ### Viewing click analytics
 Go to `/admin/clicks` to see all affiliate link clicks, including timestamps, IP addresses, and GDPR consent status.
 
