@@ -10,6 +10,7 @@ import ToolFilters from '@/components/tools/ToolFilters'
 import ToolExpandButton from '@/components/tools/ToolExpandButton'
 import FeatureMatrix from '@/components/tools/FeatureMatrix'
 import { Shield, Zap, TrendingUp, FileText } from 'lucide-react'
+import { getPageContent, getContent } from '@/lib/content'
 
 export const metadata: Metadata = {
   title: 'Find the Best Crypto Tax Tool for You',
@@ -125,13 +126,6 @@ function HomepageJsonLd({ tools }: { tools: Tool[] }) {
   )
 }
 
-const HERO_STATS = [
-  { value: '50K+', label: 'Users Helped' },
-  { value: '10+', label: 'Platforms Reviewed' },
-  { value: '50+', label: 'Evaluation Criteria' },
-  { value: '15+', label: 'Countries Supported' },
-]
-
 const whyItems = [
   {
     icon: Shield,
@@ -185,10 +179,21 @@ async function getAllTools(): Promise<Tool[]> {
 
 export default async function HomePage({ searchParams }: HomePageProps) {
   const sp = await searchParams
-  const [tools, allTools] = await Promise.all([getTools(sp), getAllTools()])
+  const [tools, allTools, content] = await Promise.all([
+    getTools(sp),
+    getAllTools(),
+    getPageContent('homepage'),
+  ])
 
   const initialTools = tools.slice(0, INITIAL_COUNT)
   const extraTools = tools.slice(INITIAL_COUNT)
+
+  const heroStats = [
+    { value: getContent(content, 'metrics.metric_1_value', '50K+'), label: getContent(content, 'metrics.metric_1_label', 'Users Helped') },
+    { value: getContent(content, 'metrics.metric_2_value', '10+'), label: getContent(content, 'metrics.metric_2_label', 'Platforms Reviewed') },
+    { value: getContent(content, 'metrics.metric_3_value', '50+'), label: getContent(content, 'metrics.metric_3_label', 'Evaluation Criteria') },
+    { value: getContent(content, 'metrics.metric_4_value', '15+'), label: getContent(content, 'metrics.metric_4_label', 'Countries Supported') },
+  ]
 
   return (
     <>
@@ -205,22 +210,21 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           {/* Trusted badge */}
           <div className="inline-flex items-center gap-2 rounded-full border border-blue-300 bg-blue-50 px-4 py-1.5 text-sm font-medium text-blue-700 mb-8">
             <Star className="h-3.5 w-3.5 fill-blue-500 text-blue-500" />
-            <span>Trusted by 50,000+ crypto investors</span>
+            <span>{getContent(content, 'hero.trusted_badge_text', 'Trusted by 50,000+ crypto investors')}</span>
           </div>
 
           <h1 className="text-5xl font-bold text-slate-900 leading-tight mb-6">
-            Find the Right Crypto Tax Tool
-            <span className="block">for You</span>
+            {getContent(content, 'hero.title_line_1', 'Find the Right Crypto Tax Tool')}
+            <span className="block">{getContent(content, 'hero.title_line_2', 'for You')}</span>
           </h1>
 
           <p className="text-xl text-slate-500 mb-12 max-w-2xl mx-auto leading-relaxed">
-            Save hours of research and avoid costly mistakes. We&apos;ve tested leading
-            platforms across 15+ countries to help you find the right fit—fast.
+            {getContent(content, 'hero.description', "Save hours of research and avoid costly mistakes. We've tested leading platforms across 15+ countries to help you find the right fit—fast.")}
           </p>
 
           {/* Stats */}
           <div className="flex flex-wrap justify-center gap-12 sm:gap-20">
-            {HERO_STATS.map((stat) => (
+            {heroStats.map((stat) => (
               <div key={stat.label} className="text-center">
                 <div className="text-4xl font-bold" style={{ color: BRAND_BLUE }}>
                   {stat.value}
@@ -239,7 +243,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           <div className="rounded-2xl border border-slate-200 bg-white shadow-sm mb-3">
             {/* "Refine Results" heading */}
             <div className="px-6 pt-5 pb-1">
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Refine Results</p>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">{getContent(content, 'comparison_table.section_title', 'Refine Results')}</p>
               <ToolFilters
                 key={[sp.regions, sp.pricing, sp.volume, sp.userType, sp.features].join('|')}
                 totalCount={tools.length}
@@ -307,8 +311,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       <section className="py-20 px-4 bg-slate-50">
         <div className="mx-auto max-w-7xl">
           <div className="text-center mb-10">
-            <h2 className="text-3xl font-bold text-slate-900 mb-3">Feature Comparison Matrix</h2>
-            <p className="text-lg text-slate-500">Compare features across all platforms</p>
+            <h2 className="text-3xl font-bold text-slate-900 mb-3">{getContent(content, 'feature_matrix.section_title', 'Feature Comparison Matrix')}</h2>
+            <p className="text-lg text-slate-500">{getContent(content, 'feature_matrix.section_description', 'Compare features across all platforms')}</p>
           </div>
           <div className="bg-white rounded-xl border border-slate-200 overflow-hidden p-6">
             <FeatureMatrix tools={allTools} maxInitial={6} />
