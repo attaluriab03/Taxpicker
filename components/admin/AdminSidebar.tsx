@@ -9,6 +9,9 @@ import {
   BarChart2,
   ExternalLink,
   LogOut,
+  Home,
+  Info,
+  HelpCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase'
@@ -18,6 +21,17 @@ const navItems = [
   { href: '/admin/tools', label: 'Tools', icon: Wrench },
   { href: '/admin/articles', label: 'Articles', icon: FileText },
   { href: '/admin/clicks', label: 'Analytics', icon: BarChart2 },
+]
+
+const contentNavItems = [
+  { href: '/admin/content/homepage', label: 'Homepage', icon: Home },
+  { href: '/admin/content/about', label: 'About', icon: Info },
+  { href: '/admin/content/faq', label: 'FAQ', icon: HelpCircle },
+  { href: '/admin/content/privacy-policy', label: 'Privacy Policy', icon: FileText },
+  { href: '/admin/content/terms', label: 'Terms', icon: FileText },
+  { href: '/admin/content/affiliate-disclosure', label: 'Disclosure', icon: FileText },
+  { href: '/admin/content/cookie-policy', label: 'Cookie Policy', icon: FileText },
+  { href: '/admin/content/disclaimer', label: 'Disclaimer', icon: FileText },
 ]
 
 interface AdminSidebarProps {
@@ -56,23 +70,51 @@ export default function AdminSidebar({ userEmail }: AdminSidebarProps) {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-1">
-        {navItems.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            prefetch={true}
-            className={cn(
-              'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-              isActive(item.href, item.exact)
-                ? 'bg-slate-800 text-white'
-                : 'text-slate-400 hover:bg-slate-900 hover:text-white'
-            )}
-          >
-            <item.icon className="h-4 w-4 flex-shrink-0" />
-            {item.label}
-          </Link>
-        ))}
+      <nav className="flex-1 px-3 py-4 overflow-y-auto">
+        {/* Existing nav items */}
+        <div className="space-y-1">
+          {navItems.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              prefetch={true}
+              className={cn(
+                'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                isActive(item.href, item.exact)
+                  ? 'bg-slate-800 text-white'
+                  : 'text-slate-400 hover:bg-slate-900 hover:text-white'
+              )}
+            >
+              <item.icon className="h-4 w-4 flex-shrink-0" />
+              {item.label}
+            </Link>
+          ))}
+        </div>
+
+        {/* Site Content group */}
+        <div className="mt-6">
+          <p className="px-3 mb-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+            Site Content
+          </p>
+          <div className="space-y-1">
+            {contentNavItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                prefetch={true}
+                className={cn(
+                  'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                  isActive(item.href)
+                    ? 'bg-slate-800 text-white'
+                    : 'text-slate-400 hover:bg-slate-900 hover:text-white'
+                )}
+              >
+                <item.icon className="h-4 w-4 flex-shrink-0" />
+                {item.label}
+              </Link>
+            ))}
+          </div>
+        </div>
       </nav>
 
       {/* Footer */}
