@@ -90,12 +90,20 @@ export default function ToolCard({ tool, rank }: ToolCardProps) {
   return (
     <div
       className={cn(
-        'group relative bg-white rounded-xl border transition-shadow hover:shadow-md',
+        'group relative bg-white rounded-xl border transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 cursor-pointer',
         tool.is_recommended ? 'border-blue-200 shadow-sm' : 'border-slate-200'
       )}
     >
+      {/* Invisible full-card link — sits behind all content (z-0) */}
+      <Link
+        href={`/tools/${tool.slug}`}
+        prefetch={true}
+        className="absolute inset-0 z-0 rounded-xl"
+        aria-label={`View details for ${tool.name}`}
+      />
+
       {/* ── Mobile layout ── */}
-      <div className="flex flex-col gap-4 p-5 lg:hidden">
+      <div className="relative z-10 pointer-events-none flex flex-col gap-4 p-5 lg:hidden">
         <div className="flex items-start gap-3">
           {/* Logo */}
           <div className={cn(
@@ -112,7 +120,7 @@ export default function ToolCard({ tool, rank }: ToolCardProps) {
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-1.5 mb-1">
-              <Link href={`/tools/${tool.slug}`} prefetch={true} className="font-semibold text-slate-900 hover:text-blue-600 transition-colors">
+              <Link href={`/tools/${tool.slug}`} prefetch={true} className="pointer-events-auto font-semibold text-slate-900 hover:text-blue-600 transition-colors">
                 {tool.name}
               </Link>
               {tool.is_recommended && (
@@ -161,14 +169,14 @@ export default function ToolCard({ tool, rank }: ToolCardProps) {
             target="_blank"
             rel="noopener noreferrer nofollow"
             onClick={handleAffiliate}
-            className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2.5 transition-colors"
+            className="pointer-events-auto flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2.5 transition-colors"
           >
             Visit Website
             <ExternalLink className="h-3.5 w-3.5" />
           </a>
           <Link
             href={`/tools/${tool.slug}`} prefetch={true}
-            className="flex-1 inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-medium px-4 py-2.5 transition-colors"
+            className="pointer-events-auto flex-1 inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-medium px-4 py-2.5 transition-colors"
           >
             View Details
           </Link>
@@ -176,7 +184,7 @@ export default function ToolCard({ tool, rank }: ToolCardProps) {
       </div>
 
       {/* ── Desktop table-row layout — 5 columns matching Figma ── */}
-      <div className="hidden lg:grid grid-cols-[1fr_140px_140px_200px_210px] gap-4 items-center px-6 py-6">
+      <div className="relative z-10 pointer-events-none hidden lg:grid grid-cols-[1fr_140px_140px_200px_210px] gap-4 items-center px-6 py-6">
 
         {/* Platform */}
         <div className="flex items-start gap-4 min-w-0">
@@ -199,7 +207,7 @@ export default function ToolCard({ tool, rank }: ToolCardProps) {
             <div className="flex flex-wrap items-center gap-2 mb-1">
               <Link
                 href={`/tools/${tool.slug}`} prefetch={true}
-                className="font-bold text-base text-slate-900 hover:text-blue-600 transition-colors"
+                className="pointer-events-auto font-bold text-base text-slate-900 hover:text-blue-600 transition-colors"
               >
                 {tool.name}
               </Link>
@@ -284,14 +292,14 @@ export default function ToolCard({ tool, rank }: ToolCardProps) {
             target="_blank"
             rel="noopener noreferrer nofollow"
             onClick={handleAffiliate}
-            className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-2.5 transition-colors"
+            className="pointer-events-auto w-full inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-2.5 transition-colors"
           >
             Visit Website
             <ExternalLink className="h-4 w-4 flex-shrink-0" />
           </a>
           <Link
             href={`/tools/${tool.slug}`} prefetch={true}
-            className="w-full inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-sm font-medium px-5 py-2.5 transition-colors"
+            className="pointer-events-auto w-full inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-sm font-medium px-5 py-2.5 transition-colors"
           >
             View Details
           </Link>

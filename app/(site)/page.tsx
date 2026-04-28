@@ -5,7 +5,6 @@ import type { Metadata } from 'next'
 import { Star } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import type { Tool } from '@/lib/supabase'
-import AffiliateBanner from '@/components/compliance/AffiliateBanner'
 import ToolCard from '@/components/tools/ToolCard'
 import ToolFilters from '@/components/tools/ToolFilters'
 import ToolExpandButton from '@/components/tools/ToolExpandButton'
@@ -194,7 +193,6 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   return (
     <>
       <HomepageJsonLd tools={tools} />
-      <AffiliateBanner />
 
       {/* Hero — soft blue-to-white gradient background */}
       <section

@@ -5,7 +5,6 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { toolMetadata } from '@/lib/metadata'
 import type { Tool, Review } from '@/lib/supabase'
-import AffiliateBanner from '@/components/compliance/AffiliateBanner'
 import DisclaimerCallout from '@/components/compliance/DisclaimerCallout'
 import RecommendedBadge from '@/components/tools/RecommendedBadge'
 import StarRating from '@/components/tools/StarRating'
@@ -164,7 +163,6 @@ export default async function ToolDetailPage({
     <>
       <ToolJsonLd tool={tool} />
       <BreadcrumbJsonLd tool={tool} />
-      <AffiliateBanner />
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
         {/* Back */}
