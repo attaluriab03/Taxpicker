@@ -1,28 +1,39 @@
+export const dynamic = 'force-dynamic'
+
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Shield, Eye, Users, RefreshCw } from 'lucide-react'
+import { getPageContent, getContent } from '@/lib/content'
 
 export const metadata: Metadata = {
   title: 'About Taxpicker',
-  description: 'Learn about Taxpicker\'s mission to bring transparency to the crypto tax software industry.',
+  description: "Learn about Taxpicker's mission to bring transparency to the crypto tax software industry.",
 }
 
-export default function AboutPage() {
+export default async function AboutPage() {
+  const content = await getPageContent('about')
+
   return (
     <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-16">
       {/* Header */}
       <div className="text-center mb-16">
-        <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4">About Taxpicker</h1>
+        <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4">
+          {getContent(content, 'hero.page_title', 'About Taxpicker')}
+        </h1>
         <p className="text-lg text-slate-500 max-w-2xl mx-auto">
-          We're on a mission to bring transparency to the crypto tax software industry. Our platform helps investors and businesses find the right solution through unbiased comparisons and comprehensive research.
+          {getContent(content, 'hero.page_description', "We're on a mission to bring transparency to the crypto tax software industry. Our platform helps investors and businesses find the right solution through unbiased comparisons and comprehensive research.")}
         </p>
       </div>
 
       {/* Why section */}
       <section className="mb-16">
-        <h2 className="text-2xl font-bold text-slate-900 text-center mb-4">Why Taxpicker Exists</h2>
-        <p className="text-center text-slate-500 mb-10">The problem we're solving in the crypto tax space</p>
+        <h2 className="text-2xl font-bold text-slate-900 text-center mb-4">
+          {getContent(content, 'why.section_title', 'Why Taxpicker Exists')}
+        </h2>
+        <p className="text-center text-slate-500 mb-10">
+          {getContent(content, 'why.section_description', "The problem we're solving in the crypto tax space")}
+        </p>
 
         <div className="grid sm:grid-cols-3 gap-6">
           {[
@@ -61,8 +72,12 @@ export default function AboutPage() {
 
       {/* Methodology */}
       <section className="mb-16">
-        <h2 className="text-2xl font-bold text-slate-900 text-center mb-4">Our Methodology</h2>
-        <p className="text-center text-slate-500 mb-10">How we evaluate and compare crypto tax software</p>
+        <h2 className="text-2xl font-bold text-slate-900 text-center mb-4">
+          {getContent(content, 'methodology.section_title', 'Our Methodology')}
+        </h2>
+        <p className="text-center text-slate-500 mb-10">
+          {getContent(content, 'methodology.section_description', 'How we evaluate and compare crypto tax software')}
+        </p>
 
         <div className="grid sm:grid-cols-2 gap-6">
           {[
@@ -102,7 +117,9 @@ export default function AboutPage() {
 
       {/* Affiliate Disclosure */}
       <section className="mb-16 border border-amber-200 bg-amber-50 rounded-xl p-6">
-        <h2 className="text-xl font-semibold text-slate-900 mb-3">Affiliate Disclosure</h2>
+        <h2 className="text-xl font-semibold text-slate-900 mb-3">
+          {getContent(content, 'affiliate.section_title', 'Affiliate Disclosure')}
+        </h2>
         <p className="text-sm text-slate-700 mb-2">
           <strong>Transparency first:</strong> Taxpicker participates in affiliate programs with some of the tools we compare. We earn a commission when users sign up through our referral links at no extra cost to you.
         </p>
@@ -119,11 +136,15 @@ export default function AboutPage() {
 
       {/* CTA */}
       <section className="bg-slate-900 text-white rounded-2xl p-8 text-center">
-        <h2 className="text-2xl font-bold mb-3">Ready to Find Your Perfect Tax Tool?</h2>
-        <p className="text-slate-400 mb-6">Use our comparison tool to find the right crypto tax software for your needs.</p>
+        <h2 className="text-2xl font-bold mb-3">
+          {getContent(content, 'cta.section_title', 'Ready to Find Your Perfect Tax Tool?')}
+        </h2>
+        <p className="text-slate-400 mb-6">
+          {getContent(content, 'cta.description', 'Use our comparison tool to find the right crypto tax software for your needs.')}
+        </p>
         <Link href="/">
           <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-white">
-            Compare Tools Now
+            {getContent(content, 'cta.button_text', 'Compare Tools Now')}
           </Button>
         </Link>
       </section>
