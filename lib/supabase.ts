@@ -67,19 +67,15 @@ export type Tool = {
   website_url: string | null
   pricing_type: 'free' | 'freemium' | 'paid'
   price_from: number | null
-  price_starter: number | null
-  price_pro: number | null
-  price_premium: number | null
-  price_enterprise: string | null
-  price_starter_label: string | null
-  price_pro_label: string | null
-  price_premium_label: string | null
   pricing_details: string | null
   features: string[]
   supported_countries: string[]
+  supported_regions: string[]
   supported_exchanges: string[]
   supported_wallets: string[]
   tax_report_types: string[]
+  trading_volume: string[]
+  user_type: string[]
   pros: string[]
   cons: string[]
   best_for: string[]

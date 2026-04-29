@@ -21,9 +21,21 @@ export const metadata: Metadata = {
 const INITIAL_COUNT = 6
 const BRAND_BLUE = '#2563EB'
 
+type FilterOption = { value: string; label: string; metadata?: { max?: number } | null }
+
+async function getFilterOptions(category: string): Promise<FilterOption[]> {
+  const { data } = await supabase
+    .from('filter_options')
+    .select('value, label, metadata')
+    .eq('category', category)
+    .eq('is_active', true)
+    .order('display_order')
+  return (data as FilterOption[]) || []
+}
+
 async function getTools(searchParams: {
   regions?: string
-  pricing?: string
+  pricing?: string    // pricing_type model: free | freemium | paid
   features?: string
   volume?: string
   userType?: string
@@ -38,21 +50,25 @@ async function getTools(searchParams: {
     .order('created_at', { ascending: false })
 
   if (searchParams.regions) {
-    const regionList = searchParams.regions.split(',').filter(Boolean)
-    // AND logic — each selected region must be in supported_countries
-    for (const region of regionList) {
-      query = query.contains('supported_countries', [region])
+    for (const region of searchParams.regions.split(',').filter(Boolean)) {
+      query = query.contains('supported_regions', [region])
     }
   }
   if (searchParams.pricing && searchParams.pricing !== 'all') {
-    query = query.eq('pricing_type', searchParams.pricing)
+    if (['free', 'freemium', 'paid'].includes(searchParams.pricing)) {
+      query = query.eq('pricing_type', searchParams.pricing)
+    }
   }
   if (searchParams.features) {
-    const featureList = searchParams.features.split(',').filter(Boolean)
-    for (const feat of featureList) {
-      // JSONB @> operator requires JSON.stringify for proper comparison
+    for (const feat of searchParams.features.split(',').filter(Boolean)) {
       query = query.filter('features', 'cs', JSON.stringify([feat.trim()]))
     }
+  }
+  if (searchParams.volume && searchParams.volume !== 'all') {
+    query = query.contains('trading_volume', [searchParams.volume])
+  }
+  if (searchParams.userType && searchParams.userType !== 'all') {
+    query = query.contains('user_type', [searchParams.userType])
   }
 
   const { data, error } = await query
@@ -61,37 +77,7 @@ async function getTools(searchParams: {
     return []
   }
 
-  let tools = data as Tool[]
-
-  // Client-side filtering for volume (no dedicated DB column — infer from pricing_details)
-  if (searchParams.volume && searchParams.volume !== 'all') {
-    tools = tools.filter((t) => {
-      const details = (t.pricing_details || '').toLowerCase()
-      switch (searchParams.volume) {
-        case 'low':    return details.includes('100') || details.includes('25') || details.includes('50')
-        case 'medium': return details.includes('1,000') || details.includes('1000') || details.includes('500')
-        case 'high':   return details.includes('10,000') || details.includes('10000') || details.includes('5,000')
-        case 'unlimited': return details.includes('unlimited') || details.includes('∞')
-        default: return true
-      }
-    })
-  }
-
-  // Client-side filtering for user type (infer from best_for array)
-  if (searchParams.userType && searchParams.userType !== 'both') {
-    tools = tools.filter((t) => {
-      const bestFor = (t.best_for || []).map((b: string) => b.toLowerCase())
-      if (searchParams.userType === 'business') {
-        return bestFor.some((b: string) => b.includes('business') || b.includes('enterprise') || b.includes('professional'))
-      }
-      if (searchParams.userType === 'individual') {
-        return bestFor.some((b: string) => b.includes('individual') || b.includes('trader') || b.includes('investor') || b.includes('beginner'))
-      }
-      return true
-    })
-  }
-
-  return tools
+  return data as Tool[]
 }
 
 function HomepageJsonLd({ tools }: { tools: Tool[] }) {
@@ -158,7 +144,7 @@ const whyItems = [
 ]
 
 interface HomePageProps {
-  searchParams: Promise<{ regions?: string; pricing?: string; features?: string; volume?: string; userType?: string }>
+  searchParams: Promise<{ regions?: string; pricing?: string; priceRange?: string; features?: string; volume?: string; userType?: string }>
 }
 
 async function getAllTools(): Promise<Tool[]> {
@@ -179,11 +165,39 @@ async function getAllTools(): Promise<Tool[]> {
 
 export default async function HomePage({ searchParams }: HomePageProps) {
   const sp = await searchParams
-  const [tools, allTools, content] = await Promise.all([
+  const [
+    rawTools,
+    allTools,
+    content,
+    regionOptions,
+    priceRangeOptions,
+    volumeOptions,
+    userTypeOptions,
+    featureOptions,
+  ] = await Promise.all([
     getTools(sp),
     getAllTools(),
     getPageContent('homepage'),
+    getFilterOptions('region'),
+    getFilterOptions('price_range'),
+    getFilterOptions('trading_volume'),
+    getFilterOptions('user_type'),
+    getFilterOptions('required_features'),
   ])
+
+  // Apply price range filter post-fetch (needs metadata.max from priceRangeOptions)
+  let tools = rawTools
+  if (sp.priceRange && sp.priceRange !== 'all') {
+    const rangeOpt = priceRangeOptions.find((o) => o.value === sp.priceRange)
+    const max = rangeOpt?.metadata?.max
+    if (max !== undefined) {
+      tools = rawTools.filter((t) => {
+        if (t.pricing_type === 'free') return true
+        const price = t.price_from ?? 0
+        return price > 0 && price <= max
+      })
+    }
+  }
 
   const initialTools = tools.slice(0, INITIAL_COUNT)
   const extraTools = tools.slice(INITIAL_COUNT)
@@ -245,13 +259,19 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             <div className="px-6 pt-5 pb-1">
               <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">{getContent(content, 'comparison_table.section_title', 'Refine Results')}</p>
               <ToolFilters
-                key={[sp.regions, sp.pricing, sp.volume, sp.userType, sp.features].join('|')}
+                key={[sp.regions, sp.pricing, sp.priceRange, sp.volume, sp.userType, sp.features].join('|')}
                 totalCount={tools.length}
                 initialRegions={sp.regions ? sp.regions.split(',').filter(Boolean) : []}
-                initialPricing={sp.pricing || 'all'}
+                initialPricingModel={sp.pricing || 'all'}
+                initialPriceRange={sp.priceRange || 'all'}
                 initialVolume={sp.volume || 'all'}
-                initialUserType={sp.userType || 'both'}
+                initialUserType={sp.userType || 'all'}
                 initialFeatures={sp.features ? sp.features.split(',').filter(Boolean) : []}
+                regionOptions={regionOptions}
+                priceRangeOptions={priceRangeOptions}
+                volumeOptions={volumeOptions}
+                userTypeOptions={userTypeOptions}
+                featureOptions={featureOptions}
               />
             </div>
 
@@ -315,7 +335,12 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             <p className="text-lg text-slate-500">{getContent(content, 'feature_matrix.section_description', 'Compare features across all platforms')}</p>
           </div>
           <div className="bg-white rounded-xl border border-slate-200 overflow-hidden p-6">
-            <FeatureMatrix tools={allTools} maxInitial={6} />
+            <FeatureMatrix
+              tools={allTools}
+              maxInitial={6}
+              featureRows={featureOptions}
+              regionOptions={regionOptions}
+            />
           </div>
         </div>
       </section>

@@ -12,6 +12,7 @@ import {
   Home,
   Info,
   HelpCircle,
+  SlidersHorizontal,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase'
@@ -21,6 +22,7 @@ const navItems = [
   { href: '/admin/tools', label: 'Tools', icon: Wrench },
   { href: '/admin/articles', label: 'Articles', icon: FileText },
   { href: '/admin/clicks', label: 'Analytics', icon: BarChart2 },
+  { href: '/admin/filters', label: 'Filters', icon: SlidersHorizontal },
 ]
 
 const contentNavItems = [

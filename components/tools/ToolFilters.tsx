@@ -14,70 +14,45 @@ import { cn } from '@/lib/utils'
 
 const BRAND_BLUE = '#2563EB'
 
-const REGIONS = [
-  { value: 'US', label: 'United States' },
-  { value: 'GB', label: 'United Kingdom' },
-  { value: 'CA', label: 'Canada' },
-  { value: 'EU', label: 'European Union' },
-  { value: 'AU', label: 'Australia' },
-]
+export interface FilterOption {
+  value: string
+  label: string
+  metadata?: { max?: number } | null
+}
 
-const PRICING_OPTIONS = [
-  { value: 'freemium', label: 'Freemium (Free + Paid)' },
-  { value: 'paid', label: 'Paid Only' },
+const PRICING_MODEL_OPTIONS = [
+  { value: 'all', label: 'All' },
   { value: 'free', label: 'Free' },
-]
-
-// Values must exactly match the strings stored in the `features` JSONB column
-const FEATURES_OPTIONS = [
-  { value: 'DeFi Transaction Tracking', label: 'DeFi Support' },
-  { value: 'NFT Tax Reporting', label: 'NFT Tracking' },
-  { value: 'Tax-Loss Harvesting', label: 'Tax-Loss Harvesting' },
-  { value: 'Portfolio Tracking', label: 'Portfolio Tracking' },
-  { value: 'Automated Exchange Imports', label: 'Exchange Imports' },
-  { value: 'API Integrations', label: 'API Integrations' },
-  { value: 'TurboTax Integration', label: 'TurboTax Integration' },
-  { value: 'CPA Export Formats', label: 'CPA Export' },
-  { value: 'Mobile App', label: 'Mobile App' },
-  { value: 'Audit Report Generation', label: 'Audit Reports' },
-  { value: 'Staking / Income Tracking', label: 'Staking / Income' },
-]
-
-const VOLUME_OPTIONS = [
-  { value: 'low', label: 'Low (< 100 trades)' },
-  { value: 'medium', label: 'Medium (100–1k)' },
-  { value: 'high', label: 'High (1k–10k)' },
-  { value: 'unlimited', label: 'Unlimited' },
-]
-
-const USER_TYPE_OPTIONS = [
-  { value: 'individual', label: 'Individual' },
-  { value: 'business', label: 'Business' },
+  { value: 'freemium', label: 'Freemium' },
+  { value: 'paid', label: 'Paid' },
 ]
 
 interface ToolFiltersProps {
   totalCount: number
   initialRegions?: string[]
-  initialPricing?: string
+  initialPricingModel?: string
+  initialPriceRange?: string
   initialVolume?: string
   initialUserType?: string
   initialFeatures?: string[]
+  regionOptions?: FilterOption[]
+  priceRangeOptions?: FilterOption[]
+  volumeOptions?: FilterOption[]
+  userTypeOptions?: FilterOption[]
+  featureOptions?: FilterOption[]
 }
 
 function FilterLabel({ label }: { label: string }) {
   return (
     <div className="mb-2">
-      <span className="block text-xs font-bold text-slate-500 tracking-wide">
-        {label}
-      </span>
+      <span className="block text-xs font-bold text-slate-500 tracking-wide">{label}</span>
     </div>
   )
 }
 
-// ─── Shared multi-select dropdown ──────────────────────────────────────────
 interface MultiSelectProps {
   selected: string[]
-  options: { value: string; label: string }[]
+  options: FilterOption[]
   placeholder: string
   onChange: (values: string[]) => void
 }
@@ -86,12 +61,9 @@ function MultiSelect({ selected, options, placeholder, onChange }: MultiSelectPr
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
-  // Close on click outside or Escape
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false)
-      }
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
     }
     function handleKey(e: KeyboardEvent) {
       if (e.key === 'Escape') setOpen(false)
@@ -105,22 +77,14 @@ function MultiSelect({ selected, options, placeholder, onChange }: MultiSelectPr
   }, [])
 
   const toggle = (value: string) => {
-    if (selected.includes(value)) {
-      onChange(selected.filter((v) => v !== value))
-    } else {
-      onChange([...selected, value])
-    }
+    onChange(selected.includes(value) ? selected.filter((v) => v !== value) : [...selected, value])
   }
 
-  const selectAll = () => onChange(allSelected ? [] : options.map((o) => o.value))
-  const clearAll = () => onChange([])
-
-  const allSelected = selected.length === options.length
+  const allSelected = options.length > 0 && selected.length === options.length
   const hasSelection = selected.length > 0
 
   return (
     <div ref={ref} className="relative">
-      {/* Trigger button */}
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
@@ -143,22 +107,15 @@ function MultiSelect({ selected, options, placeholder, onChange }: MultiSelectPr
               {selected.length}
             </span>
           )}
-          <ChevronDown
-            className={cn(
-              'h-4 w-4 text-slate-400 transition-transform',
-              open && 'rotate-180'
-            )}
-          />
+          <ChevronDown className={cn('h-4 w-4 text-slate-400 transition-transform', open && 'rotate-180')} />
         </div>
       </button>
 
-      {/* Dropdown panel */}
       {open && (
         <div className="absolute left-0 top-full mt-1 z-50 w-56 rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden">
-          {/* Select all */}
           <button
             type="button"
-            onClick={selectAll}
+            onClick={() => onChange(allSelected ? [] : options.map((o) => o.value))}
             className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-50 border-b border-slate-100"
           >
             <span
@@ -173,7 +130,6 @@ function MultiSelect({ selected, options, placeholder, onChange }: MultiSelectPr
             <span className="font-medium">Select all</span>
           </button>
 
-          {/* Options */}
           <div className="max-h-60 overflow-y-auto py-1">
             {options.map((opt) => {
               const checked = selected.includes(opt.value)
@@ -202,10 +158,9 @@ function MultiSelect({ selected, options, placeholder, onChange }: MultiSelectPr
             })}
           </div>
 
-          {/* Clear all */}
           <button
             type="button"
-            onClick={clearAll}
+            onClick={() => onChange([])}
             className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm text-slate-500 hover:bg-slate-50 border-t border-slate-100 hover:text-rose-600 transition-colors"
           >
             Clear all
@@ -216,57 +171,67 @@ function MultiSelect({ selected, options, placeholder, onChange }: MultiSelectPr
   )
 }
 
-// ─── Main filter component ──────────────────────────────────────────────────
 export default function ToolFilters({
   totalCount,
   initialRegions = [],
-  initialPricing = 'all',
+  initialPricingModel = 'all',
+  initialPriceRange = 'all',
   initialVolume = 'all',
-  initialUserType = 'both',
+  initialUserType = 'all',
   initialFeatures = [],
+  regionOptions = [],
+  priceRangeOptions = [],
+  volumeOptions = [],
+  userTypeOptions = [],
+  featureOptions = [],
 }: ToolFiltersProps) {
   const router = useRouter()
   const [, startTransition] = useTransition()
 
-  // Local state provides immediate UI feedback while the server re-renders in the background.
-  // Props are the authoritative server values; local state tracks optimistic updates.
   const [selectedRegions, setRegions] = useState<string[]>(initialRegions)
-  const [pricing, setPricing] = useState(initialPricing)
+  const [pricingModel, setPricingModel] = useState(initialPricingModel)
+  const [priceRange, setPriceRange] = useState(initialPriceRange)
   const [volume, setVolume] = useState(initialVolume)
   const [userType, setUserType] = useState(initialUserType)
   const [selectedFeatures, setFeatures] = useState<string[]>(initialFeatures)
 
   const hasFilters =
-    selectedRegions.length > 0 || pricing !== 'all' || selectedFeatures.length > 0 ||
-    volume !== 'all' || userType !== 'both'
+    selectedRegions.length > 0 ||
+    pricingModel !== 'all' ||
+    priceRange !== 'all' ||
+    selectedFeatures.length > 0 ||
+    volume !== 'all' ||
+    userType !== 'all'
 
   function pushParams(overrides: {
     regions?: string[]
     pricing?: string
+    priceRange?: string
     features?: string[]
     volume?: string
     userType?: string
   }) {
-    // Update local state immediately so UI reflects the change without waiting for navigation
     if (overrides.regions !== undefined) setRegions(overrides.regions)
-    if (overrides.pricing !== undefined) setPricing(overrides.pricing)
+    if (overrides.pricing !== undefined) setPricingModel(overrides.pricing)
+    if (overrides.priceRange !== undefined) setPriceRange(overrides.priceRange)
     if (overrides.volume !== undefined) setVolume(overrides.volume)
     if (overrides.userType !== undefined) setUserType(overrides.userType)
     if (overrides.features !== undefined) setFeatures(overrides.features)
 
-    const p = new URLSearchParams()
-
     const rg = overrides.regions !== undefined ? overrides.regions : selectedRegions
-    const pr = overrides.pricing !== undefined ? overrides.pricing : pricing
+    const pm = overrides.pricing !== undefined ? overrides.pricing : pricingModel
+    const pr = overrides.priceRange !== undefined ? overrides.priceRange : priceRange
     const ft = overrides.features !== undefined ? overrides.features : selectedFeatures
     const vol = overrides.volume !== undefined ? overrides.volume : volume
     const ut = overrides.userType !== undefined ? overrides.userType : userType
 
+    const p = new URLSearchParams()
     if (rg.length > 0) p.set('regions', rg.join(','))
-    if (pr && pr !== 'all') p.set('pricing', pr)
+    if (pm && pm !== 'all') p.set('pricing', pm)
+    if (pr && pr !== 'all') p.set('priceRange', pr)
     if (ft.length > 0) p.set('features', ft.join(','))
     if (vol && vol !== 'all') p.set('volume', vol)
-    if (ut && ut !== 'both') p.set('userType', ut)
+    if (ut && ut !== 'all') p.set('userType', ut)
 
     startTransition(() => {
       router.push(p.toString() ? `/?${p.toString()}` : '/', { scroll: false })
@@ -275,25 +240,57 @@ export default function ToolFilters({
 
   const clearAll = () => {
     setRegions([])
-    setPricing('all')
+    setPricingModel('all')
+    setPriceRange('all')
     setVolume('all')
-    setUserType('both')
+    setUserType('all')
     setFeatures([])
     startTransition(() => router.push('/', { scroll: false }))
   }
 
   return (
     <div className="pb-4">
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-5">
-        {/* Region — multi-select with AND logic */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+        {/* Region */}
         <div>
           <FilterLabel label="Region" />
           <MultiSelect
             selected={selectedRegions}
-            options={REGIONS}
+            options={regionOptions}
             placeholder="Select regions..."
             onChange={(vals) => pushParams({ regions: vals })}
           />
+        </div>
+
+        {/* Pricing Model — hardcoded, never from DB */}
+        <div>
+          <FilterLabel label="Pricing Model" />
+          <Select value={pricingModel} onValueChange={(val) => pushParams({ pricing: val })}>
+            <SelectTrigger className="h-11 text-sm border-slate-200 w-full">
+              <SelectValue placeholder="All" />
+            </SelectTrigger>
+            <SelectContent>
+              {PRICING_MODEL_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Price Range — dynamic from filter_options */}
+        <div>
+          <FilterLabel label="Price Range" />
+          <Select value={priceRange} onValueChange={(val) => pushParams({ priceRange: val })}>
+            <SelectTrigger className="h-11 text-sm border-slate-200 w-full">
+              <SelectValue placeholder="Any Price" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Any Price</SelectItem>
+              {priceRangeOptions.map((o) => (
+                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Trading Volume */}
@@ -305,23 +302,7 @@ export default function ToolFilters({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Volumes</SelectItem>
-              {VOLUME_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Price Range */}
-        <div>
-          <FilterLabel label="Price Range" />
-          <Select value={pricing} onValueChange={(val) => pushParams({ pricing: val })}>
-            <SelectTrigger className="h-11 text-sm border-slate-200 w-full">
-              <SelectValue placeholder="All Prices" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Prices</SelectItem>
-              {PRICING_OPTIONS.map((o) => (
+              {volumeOptions.map((o) => (
                 <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
               ))}
             </SelectContent>
@@ -333,30 +314,29 @@ export default function ToolFilters({
           <FilterLabel label="User Type" />
           <Select value={userType} onValueChange={(val) => pushParams({ userType: val })}>
             <SelectTrigger className="h-11 text-sm border-slate-200 w-full">
-              <SelectValue placeholder="Both" />
+              <SelectValue placeholder="All Users" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="both">Both</SelectItem>
-              {USER_TYPE_OPTIONS.map((o) => (
+              <SelectItem value="all">All Users</SelectItem>
+              {userTypeOptions.map((o) => (
                 <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
 
-        {/* Required Features — multi-select */}
+        {/* Required Features */}
         <div>
           <FilterLabel label="Required Features" />
           <MultiSelect
             selected={selectedFeatures}
-            options={FEATURES_OPTIONS}
+            options={featureOptions}
             placeholder="Select features..."
             onChange={(vals) => pushParams({ features: vals })}
           />
         </div>
       </div>
 
-      {/* Bottom row */}
       <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-100">
         <span className="text-sm text-slate-500">
           Showing{' '}

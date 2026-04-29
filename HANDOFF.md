@@ -395,6 +395,157 @@ If you migrate to a new Supabase project and need to re-populate all default con
 
 ```bash
 npx tsx scripts/seed-content.ts
+npx tsx scripts/seed-filters.ts   # seeds filter_options table
 ```
 
-This script upserts all site_content rows and inserts faq_items (skipped if already populated). Run it from the project root with `.env.local` present.
+Both scripts upsert safely (they can be re-run without duplicating data). Run them from the project root with `.env.local` present.
+
+---
+
+## 12. Filter System
+
+### Overview
+
+Every filter option on the homepage — Region, Trading Volume, Price Range, User Type, and Required Features — is stored in the `filter_options` Supabase table and manageable from **Admin → Filters**. There are no hardcoded filter values in the codebase; all lists come from the database.
+
+The `filter_options` table has eight categories:
+
+| Category | Used in |
+|---|---|
+| `region` | Region filter (homepage + Feature Matrix) · Tool edit form |
+| `price_range` | Price Range filter (homepage) — stores threshold values, not tool array data |
+| `trading_volume` | Trading Volume filter (homepage) · Tool edit form |
+| `user_type` | User Type filter (homepage) · Tool edit form |
+| `required_features` | Required Features filter · Feature Comparison Matrix · Tool edit form |
+| `supported_exchanges` | Tool edit form · Tool detail page |
+| `supported_wallets` | Tool edit form · Tool detail page |
+| `tax_report_types` | Tool edit form · Tool detail page |
+
+---
+
+### How tools connect to filters
+
+Every tool has fields that connect it to the homepage filters:
+
+| Tool field | Homepage filter | How to set |
+|---|---|---|
+| `supported_regions` | Region filter | Dropdown on tool edit form → Supported Regions |
+| `trading_volume` | Trading Volume filter | Dropdown on tool edit form → Trading Volume |
+| `user_type` | User Type filter | Dropdown on tool edit form → User Type |
+| `features` | Required Features filter | Dropdown on tool edit form → Features |
+| `pricing_type` | Pricing Model filter (Free/Freemium/Paid) | Radio buttons on tool edit form → Pricing section |
+| `price_from` | Price Range filter | Computed automatically from pricing tiers |
+
+A tool only appears in filter results if its field contains the selected value. For example, selecting "United States" in the Region filter returns only tools where `supported_regions` contains `US`.
+
+---
+
+### Adding a new region
+
+1. Go to **Admin → Filters → Regions tab**
+2. Fill in:
+   - **Label**: `Japan` (shown to users)
+   - **Value**: `JP` (stored in `tools.supported_regions`)
+   - **Display Order**: lower number = shown first in the filter
+3. Click **Add Option**
+4. The region immediately appears in the Region filter on the homepage and the Feature Matrix
+5. Go to **Admin → Tools** and edit any tool that supports Japan — select `Japan` under Supported Regions
+
+---
+
+### Adding a new feature filter option
+
+1. Go to **Admin → Filters → Required Features tab**
+2. Fill in:
+   - **Label**: `Options Trading Support`
+   - **Value**: `Options Trading Support` (for features, value = label — must exactly match what you'll enter in the tool's Features field)
+   - **Display Order**: order in the filter and Feature Matrix rows
+3. Click **Add Option**
+4. The feature immediately appears in the Required Features filter and as a new row in the Feature Matrix
+5. Edit any tool that supports this feature — select it under Features
+
+---
+
+### Deactivating a filter option
+
+Clicking the toggle next to an active option will prompt a confirmation. Deactivating:
+- Hides the option from the public filter immediately
+- Does **not** remove it from tools that already have it selected (data is preserved)
+- Can be reversed by clicking the toggle again (no confirmation needed to reactivate)
+
+---
+
+### Tools schema — filter-related columns
+
+| Column | Type | Description |
+|---|---|---|
+| `supported_regions` | `text[]` | Region codes (e.g. `US`, `GB`) from `filter_options.region` |
+| `trading_volume` | `text[]` | Volume codes (e.g. `casual`, `high`) from `filter_options.trading_volume` |
+| `user_type` | `text[]` | User type codes (e.g. `beginner`, `business`) from `filter_options.user_type` |
+| `features` | `text[]` | Feature strings matching `filter_options.required_features.value` |
+| `supported_countries` | `text[]` | Legacy column — kept for backward compat; prefer `supported_regions` |
+
+After adding new tools via the admin form, `supported_countries` is no longer populated. It is kept in the database schema for backward compatibility with old tool data.
+
+---
+
+## 13. Pricing System
+
+### Overview
+
+Pricing is split into two independent concepts that power two independent homepage filters:
+
+| Concept | Column | Filter | Editable |
+|---|---|---|---|
+| Pricing Model | `pricing_type` | "Pricing Model" (Free / Freemium / Paid) | Radio buttons in tool form |
+| Price From | `price_from` | "Price Range" (threshold-based) | Computed automatically from tiers |
+
+---
+
+### Pricing Model (`pricing_type`)
+
+Three options — **Free**, **Freemium**, **Paid** — selected via radio buttons in the Pricing section of the tool edit form. This is a direct database value; it is never derived from tiers.
+
+- **Free**: Tool costs nothing at all.
+- **Freemium**: Tool has a free tier plus paid tiers.
+- **Paid**: Tool is paid-only (no free tier).
+
+The homepage "Pricing Model" filter is hardcoded to these three values — it does not read from `filter_options`.
+
+---
+
+### Price From (`price_from`) and the Price Range filter
+
+`price_from` is computed automatically from the tool's pricing tiers: it is the lowest numeric paid price across all tiers. You never edit this column directly — it is set by the admin form when you save.
+
+The **Price Range** filter uses threshold values stored in `filter_options` under the `price_range` category. Each threshold has a `metadata.max` field (a number). When a user selects a Price Range filter, the homepage shows only tools where `price_from ≤ max`.
+
+**Example:** A threshold "Under $100/year" with `metadata.max = 100` shows all free tools plus any paid/freemium tool with `price_from ≤ 100`.
+
+**The tool edit form shows a live "Price Range Filter Value" indicator** below the pricing tiers section. This updates in real time as you change tier prices — it shows the computed `price_from` and which threshold bucket the tool would fall into. No save is required to see the indicator update.
+
+---
+
+### Adding a new Price Range threshold
+
+1. Go to **Admin → Filters → Price Range tab**
+2. Fill in:
+   - **Label**: `Under $50/year` (shown to users in the filter)
+   - **Value**: `under_50` (any unique slug — not stored on tools)
+   - **Max Price (USD/year)**: `50` (the threshold number — tools with `price_from ≤ 50` match)
+   - **Display Order**: controls order in the dropdown
+3. Click **Add Option**
+4. The new threshold immediately appears in the Price Range filter on the homepage
+
+**Note:** `price_range` values are NOT stored in tool arrays. Deleting a `price_range` filter option only removes the threshold; no tool data is changed.
+
+---
+
+### Pricing tiers (the Pricing section in the tool form)
+
+Tiers are display-only — they render as cards on the public tool detail page. They also drive `price_from`.
+
+- **Name**: e.g. "Starter", "Pro", "Business"
+- **Price**: enter a number (`49`) for paid, `0` for Free, or text (`Custom`) for non-numeric
+- **Popular**: highlights one tier with a blue "Popular" badge — only one per tool
+- `price_from` is set to the minimum numeric price > 0 across all tiers on save; if all tiers are free (`0`), `price_from` is set to `0`

@@ -1,12 +1,8 @@
 'use client'
 
-import { useState, useTransition, useEffect } from 'react'
+import { useState, useTransition, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
-import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
 import {
   Select,
   SelectContent,
@@ -14,7 +10,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
+
 import TagInput from './TagInput'
+import FilterMultiSelect, { type FilterOption } from './FilterMultiSelect'
 import VerificationChecklist from './VerificationChecklist'
 import AutoFillButton from './AutoFillButton'
 import ConfirmDialog from './ConfirmDialog'
@@ -38,16 +40,28 @@ type ToolFormData = {
   pricing_details: string
   pricing_tiers: PriceTier[]
   features: string[]
-  supported_countries: string[]
+  supported_regions: string[]
   supported_exchanges: string[]
   supported_wallets: string[]
   tax_report_types: string[]
+  trading_volume: string[]
+  user_type: string[]
   pros: string[]
   cons: string[]
   faqs: Array<{ question: string; answer: string }>
   is_featured: boolean
   is_recommended: boolean
   is_published: boolean
+}
+
+type FilterOptionsMap = {
+  region: FilterOption[]
+  required_features: FilterOption[]
+  supported_exchanges: FilterOption[]
+  supported_wallets: FilterOption[]
+  tax_report_types: FilterOption[]
+  trading_volume: FilterOption[]
+  user_type: FilterOption[]
 }
 
 type ReviewItem = {
@@ -88,6 +102,16 @@ export default function ToolForm({ initialData, toolId }: ToolFormProps) {
   const [, startTransition] = useTransition()
   const [saving, setSaving] = useState(false)
   const [verificationPassed, setVerificationPassed] = useState(false)
+  const [priceRangeOptions, setPriceRangeOptions] = useState<Array<{ value: string; label: string; metadata?: { max?: number } | null }>>([])
+  const [filterOptions, setFilterOptions] = useState<FilterOptionsMap>({
+    region: [],
+    required_features: [],
+    supported_exchanges: [],
+    supported_wallets: [],
+    tax_report_types: [],
+    trading_volume: [],
+    user_type: [],
+  })
 
   // Reviews state
   const [reviews, setReviews] = useState<ReviewItem[]>([])
@@ -107,10 +131,12 @@ export default function ToolForm({ initialData, toolId }: ToolFormProps) {
     pricing_details: initialData?.pricing_details || '',
     pricing_tiers: initialData?.pricing_tiers || [],
     features: initialData?.features || [],
-    supported_countries: initialData?.supported_countries || [],
+    supported_regions: initialData?.supported_regions || [],
     supported_exchanges: initialData?.supported_exchanges || [],
     supported_wallets: initialData?.supported_wallets || [],
     tax_report_types: initialData?.tax_report_types || [],
+    trading_volume: initialData?.trading_volume || [],
+    user_type: initialData?.user_type || [],
     pros: initialData?.pros || [],
     cons: initialData?.cons || [],
     faqs: initialData?.faqs || [],
@@ -203,11 +229,64 @@ export default function ToolForm({ initialData, toolId }: ToolFormProps) {
     }
   }
 
+  // ── Load filter options ──────────────────────────────────────────────────
+  useEffect(() => {
+    const categories = [
+      'region',
+      'required_features',
+      'supported_exchanges',
+      'supported_wallets',
+      'tax_report_types',
+      'trading_volume',
+      'user_type',
+    ] as const
+
+    Promise.all([
+      ...categories.map((cat) =>
+        fetch(`/api/admin/filter-options?category=${cat}`)
+          .then((r) => r.json())
+          .then((json) => ({ cat, data: (json.data || []) as FilterOption[] }))
+      ),
+      fetch('/api/admin/filter-options?category=price_range')
+        .then((r) => r.json())
+        .then((json) => ({ cat: 'price_range' as const, data: json.data || [] })),
+    ]).then((results) => {
+      const map = {} as FilterOptionsMap
+      for (const { cat, data } of results) {
+        if (cat === 'price_range') {
+          setPriceRangeOptions(data)
+        } else {
+          map[cat as keyof FilterOptionsMap] = data
+        }
+      }
+      setFilterOptions(map)
+    })
+  }, [])
+
   // ── AutoFill ─────────────────────────────────────────────────────────────
   const handleAutoFill = (data: Partial<ToolFormData>) => {
     setForm((prev) => ({ ...prev, ...data }))
     toast({ title: 'AI Auto-Fill complete', description: 'Review all fields before saving.' })
   }
+
+  // ── Computed price_from display ──────────────────────────────────────────
+  const computedPriceFrom = useMemo(() => {
+    if (!form.pricing_tiers || form.pricing_tiers.length === 0) return null
+    const numericPrices = form.pricing_tiers
+      .map((t) => parseFloat(t.price))
+      .filter((p) => !isNaN(p) && p > 0)
+    if (numericPrices.length === 0) return 0
+    return Math.min(...numericPrices)
+  }, [form.pricing_tiers])
+
+  const nextThreshold = useMemo(() => {
+    if (computedPriceFrom === null || computedPriceFrom === 0) return null
+    const sorted = priceRangeOptions
+      .map((o) => o.metadata?.max)
+      .filter((n): n is number => n !== undefined && n > computedPriceFrom)
+      .sort((a, b) => a - b)
+    return sorted[0] ?? null
+  }, [computedPriceFrom, priceRangeOptions])
 
   // ── Save ─────────────────────────────────────────────────────────────────
   const save = async (publish: boolean) => {
@@ -236,6 +315,9 @@ export default function ToolForm({ initialData, toolId }: ToolFormProps) {
           return first ? parseFloat(first.price) : null
         })(),
         faqs: form.faqs,
+        supported_regions: form.supported_regions,
+        trading_volume: form.trading_volume,
+        user_type: form.user_type,
         is_published: publish,
       }
 
@@ -360,23 +442,36 @@ export default function ToolForm({ initialData, toolId }: ToolFormProps) {
         </p>
 
         <div className="space-y-4">
-          {/* Pricing type + internal notes */}
-          <div className="grid sm:grid-cols-2 gap-4 pb-4 border-b border-slate-100">
-            <div className="space-y-1.5">
-              <Label>Pricing Type</Label>
-              <Select
-                value={form.pricing_type}
-                onValueChange={(v) => set('pricing_type', v as 'free' | 'freemium' | 'paid')}
-              >
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="free">Free</SelectItem>
-                  <SelectItem value="freemium">Freemium</SelectItem>
-                  <SelectItem value="paid">Paid</SelectItem>
-                </SelectContent>
-              </Select>
+          {/* Pricing Model — hardcoded radio buttons */}
+          <div className="pb-4 border-b border-slate-100 space-y-3">
+            <Label>Pricing Model <span className="text-red-500">*</span></Label>
+            <div className="grid sm:grid-cols-3 gap-3">
+              {([
+                { value: 'free', label: 'Free', description: 'Tool is completely free to use with no payment required' },
+                { value: 'freemium', label: 'Freemium', description: 'Tool has a free tier and paid upgrade options' },
+                { value: 'paid', label: 'Paid', description: 'Tool requires payment to use — no meaningful free tier' },
+              ] as const).map((opt) => {
+                const selected = form.pricing_type === opt.value
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => set('pricing_type', opt.value)}
+                    className={`text-left p-3 rounded-lg border-2 transition-colors ${
+                      selected
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-slate-200 hover:border-slate-300 bg-white'
+                    }`}
+                  >
+                    <div className={`text-sm font-semibold mb-1 ${selected ? 'text-blue-700' : 'text-slate-800'}`}>
+                      {opt.label}
+                    </div>
+                    <div className="text-xs text-slate-500 leading-snug">{opt.description}</div>
+                  </button>
+                )
+              })}
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 mt-2">
               <Label htmlFor="pricing_details">Pricing Notes</Label>
               <Input
                 id="pricing_details"
@@ -447,52 +542,106 @@ export default function ToolForm({ initialData, toolId }: ToolFormProps) {
           >
             + Add Pricing Tier
           </Button>
+
+          {/* Computed price_from display */}
+          <div className="mt-1 p-3 bg-slate-50 rounded-lg border border-slate-200">
+            <p className="text-xs font-medium text-slate-600">Price Range Filter Value</p>
+            <p className="text-sm text-slate-900 mt-1">
+              {computedPriceFrom === null
+                ? 'No tiers added yet'
+                : computedPriceFrom === 0
+                ? 'Free (this tool will match any price range filter)'
+                : nextThreshold !== null
+                ? `$${computedPriceFrom}/year — appears in "Under $${nextThreshold}/year" and higher ranges`
+                : `$${computedPriceFrom}/year — above all current price range thresholds`
+              }
+            </p>
+            <p className="text-xs text-slate-400 mt-1">
+              Computed from the lowest paid tier price. Used for price range filtering — never shown to visitors.
+            </p>
+          </div>
         </div>
       </section>
 
       {/* Features & capabilities */}
       <section className="bg-white rounded-xl border border-slate-200 p-6">
-        <h2 className="text-base font-semibold text-slate-900 mb-5">Features &amp; Capabilities</h2>
-        <div className="space-y-4">
+        <h2 className="text-base font-semibold text-slate-900 mb-1">Features &amp; Capabilities</h2>
+        <p className="text-sm text-slate-500 mb-5">
+          All selections connect directly to the homepage filters — what you choose here determines which filters this tool appears under.
+        </p>
+        <div className="space-y-5">
           <div className="space-y-1.5">
             <Label>Features</Label>
-            <TagInput
+            <FilterMultiSelect
               value={form.features}
               onChange={(v) => set('features', v)}
-              placeholder="Type feature and press Enter..."
+              options={filterOptions.required_features}
+              hint="Connects to the Required Features filter on the homepage and the Feature Comparison Matrix."
+              placeholder="Select features this tool supports…"
             />
           </div>
-          <div className="grid sm:grid-cols-2 gap-4">
+
+          <div className="grid sm:grid-cols-2 gap-5">
             <div className="space-y-1.5">
-              <Label>Supported Countries</Label>
-              <TagInput
-                value={form.supported_countries}
-                onChange={(v) => set('supported_countries', v)}
-                placeholder="US, UK, Canada..."
+              <Label>Supported Regions</Label>
+              <FilterMultiSelect
+                value={form.supported_regions}
+                onChange={(v) => set('supported_regions', v)}
+                options={filterOptions.region}
+                hint="Connects to the Region filter on the homepage and Feature Matrix."
+                placeholder="Select supported regions…"
               />
             </div>
+
+            <div className="space-y-1.5">
+              <Label>Trading Volume</Label>
+              <FilterMultiSelect
+                value={form.trading_volume}
+                onChange={(v) => set('trading_volume', v)}
+                options={filterOptions.trading_volume}
+                hint="Connects to the Trading Volume filter on the homepage."
+                placeholder="Select suitable volume ranges…"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>User Type</Label>
+              <FilterMultiSelect
+                value={form.user_type}
+                onChange={(v) => set('user_type', v)}
+                options={filterOptions.user_type}
+                hint="Connects to the User Type filter on the homepage."
+                placeholder="Select user types this tool suits…"
+              />
+            </div>
+
             <div className="space-y-1.5">
               <Label>Supported Exchanges</Label>
-              <TagInput
+              <FilterMultiSelect
                 value={form.supported_exchanges}
                 onChange={(v) => set('supported_exchanges', v)}
-                placeholder="Binance, Coinbase..."
+                options={filterOptions.supported_exchanges}
+                placeholder="Select exchanges…"
               />
             </div>
+
             <div className="space-y-1.5">
               <Label>Supported Wallets</Label>
-              <TagInput
+              <FilterMultiSelect
                 value={form.supported_wallets}
                 onChange={(v) => set('supported_wallets', v)}
-                placeholder="MetaMask, Ledger..."
+                options={filterOptions.supported_wallets}
+                placeholder="Select wallets…"
               />
             </div>
+
             <div className="space-y-1.5">
               <Label>Tax Report Types</Label>
-              <TagInput
+              <FilterMultiSelect
                 value={form.tax_report_types}
                 onChange={(v) => set('tax_report_types', v)}
-                placeholder="Capital Gains, Income..."
+                options={filterOptions.tax_report_types}
+                placeholder="Select report types…"
               />
             </div>
           </div>

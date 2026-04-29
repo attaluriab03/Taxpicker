@@ -26,6 +26,8 @@ import {
 import AffiliateButton from '@/components/tools/AffiliateButton'
 import ReviewsSection from '@/components/tools/ReviewsSection'
 
+type FilterOption = { value: string; label: string }
+
 async function getTool(slug: string): Promise<Tool | null> {
   const { data } = await supabase
     .from('tools')
@@ -44,6 +46,19 @@ async function getReviews(toolId: string): Promise<Review[]> {
     .order('created_at', { ascending: false })
     .limit(10)
   return (data as Review[]) || []
+}
+
+async function getFilterLabels(category: string): Promise<FilterOption[]> {
+  const { data } = await supabase
+    .from('filter_options')
+    .select('value, label')
+    .eq('category', category)
+    .eq('is_active', true)
+  return (data as FilterOption[]) || []
+}
+
+function lookupLabel(options: FilterOption[], value: string): string {
+  return options.find((o) => o.value === value)?.label ?? value
 }
 
 export async function generateMetadata({
@@ -136,12 +151,18 @@ export default async function ToolDetailPage({
   params: Promise<{ slug: string }>
 }) {
   const { slug } = await params
-  const [tool, reviews] = await Promise.all([
-    getTool(slug),
-    getTool(slug).then((t) => (t ? getReviews(t.id) : [])),
+  const tool = await getTool(slug)
+  if (!tool) notFound()
+
+  const [reviews, regionLabels, featureLabels] = await Promise.all([
+    getReviews(tool.id),
+    getFilterLabels('region'),
+    getFilterLabels('required_features'),
   ])
 
-  if (!tool) notFound()
+  const regions = tool.supported_regions?.length
+    ? tool.supported_regions
+    : tool.supported_countries || []
 
   return (
     <>
@@ -179,7 +200,15 @@ export default async function ToolDetailPage({
                   <div className="flex flex-wrap items-center gap-3">
                     {tool.rating && <StarRating rating={tool.rating} />}
                     {tool.pricing_type && (
-                      <Badge variant="secondary" className="capitalize">{tool.pricing_type}</Badge>
+                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${
+                        tool.pricing_type === 'free'
+                          ? 'bg-emerald-50 text-emerald-700'
+                          : tool.pricing_type === 'freemium'
+                          ? 'bg-blue-50 text-blue-700'
+                          : 'bg-slate-100 text-slate-600'
+                      }`}>
+                        {tool.pricing_type}
+                      </span>
                     )}
                   </div>
                 </div>
@@ -241,7 +270,7 @@ export default async function ToolDetailPage({
                   {tool.features.map((f) => (
                     <div key={f} className="flex items-center gap-2 text-sm text-slate-700">
                       <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
-                      {f}
+                      {lookupLabel(featureLabels, f)}
                     </div>
                   ))}
                 </div>
@@ -339,16 +368,18 @@ export default async function ToolDetailPage({
               <AffiliateButton tool={tool} />
             </div>
 
-            {/* Best for */}
-            {tool.supported_countries?.length > 0 && (
+            {/* Supported Regions */}
+            {regions.length > 0 && (
               <div className="border border-slate-200 rounded-xl p-5">
                 <h3 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
                   <Globe className="h-4 w-4 text-slate-400" />
-                  Supported Countries
+                  Supported Regions
                 </h3>
                 <div className="flex flex-wrap gap-1.5">
-                  {tool.supported_countries.map((c) => (
-                    <Badge key={c} variant="secondary" className="text-xs">{c}</Badge>
+                  {regions.map((c) => (
+                    <Badge key={c} variant="secondary" className="text-xs">
+                      {lookupLabel(regionLabels, c)}
+                    </Badge>
                   ))}
                 </div>
               </div>

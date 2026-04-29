@@ -12,11 +12,35 @@ interface ToolCardProps {
   rank?: number
 }
 
-function pricingBadge(tool: Tool): string {
-  if (tool.pricing_type === 'free') return 'Free'
-  if (tool.pricing_type === 'freemium') return 'Free'
-  if (tool.price_from && tool.price_from > 0) return `$${tool.price_from}/yr`
-  return 'Paid'
+function PricingBadge({ tool }: { tool: Tool }) {
+  const { pricing_type, price_from } = tool
+  const popularTier = tool.pricing_tiers?.find((t) => t.is_popular)
+  const popularPrice = popularTier ? parseFloat(popularTier.price) : NaN
+
+  const badge =
+    pricing_type === 'free'
+      ? { label: 'Free', classes: 'bg-emerald-50 border-emerald-200 text-emerald-700' }
+      : pricing_type === 'freemium'
+      ? { label: 'Freemium', classes: 'bg-blue-50 border-blue-200 text-blue-700' }
+      : { label: 'Paid', classes: 'bg-slate-100 border-slate-200 text-slate-600' }
+
+  const priceLabel =
+    !isNaN(popularPrice) && popularPrice > 0 && popularTier
+      ? `${popularTier.name} — $${popularPrice}/yr`
+      : price_from && price_from > 0
+      ? `From $${price_from}/yr`
+      : null
+
+  return (
+    <div className="flex flex-col items-center gap-0.5">
+      <span className={`inline-flex items-center rounded-lg border px-3 py-1 text-sm font-semibold ${badge.classes}`}>
+        {badge.label}
+      </span>
+      {priceLabel && (
+        <span className="text-xs text-slate-500">{priceLabel}</span>
+      )}
+    </div>
+  )
 }
 
 // Shorten country names to short labels for tags
@@ -77,15 +101,13 @@ export default function ToolCard({ tool, rank }: ToolCardProps) {
     trackAffiliateClickClient(tool.id)
   }
 
-  const badge = pricingBadge(tool)
   const bestFor = tool.best_for?.slice(0, 2) ?? []
   const avatar = avatarColor(tool.name)
 
-  // Abbreviated country tags
-  const countryTags = tool.supported_countries
-    .slice(0, 3)
-    .map(shortCountry)
-  const extraCountries = tool.supported_countries.length - 3
+  // Abbreviated region tags — prefer supported_regions (codes), fall back to supported_countries
+  const regions = (tool.supported_regions?.length ? tool.supported_regions : tool.supported_countries) || []
+  const countryTags = regions.slice(0, 3).map(shortCountry)
+  const extraCountries = regions.length - 3
 
   return (
     <div
@@ -145,9 +167,7 @@ export default function ToolCard({ tool, rank }: ToolCardProps) {
               )}
             </div>
           )}
-          <span className="inline-flex items-center rounded-md bg-blue-50 border border-blue-100 px-3 py-1 text-sm font-semibold text-blue-700">
-            {badge}
-          </span>
+          <PricingBadge tool={tool} />
         </div>
 
         {bestFor.length > 0 && (
@@ -262,9 +282,7 @@ export default function ToolCard({ tool, rank }: ToolCardProps) {
 
         {/* Starting Price */}
         <div className="flex items-center justify-center">
-          <span className="inline-flex items-center rounded-lg bg-blue-50 border border-blue-100 px-4 py-1.5 text-base font-bold text-blue-700">
-            {badge}
-          </span>
+          <PricingBadge tool={tool} />
         </div>
 
         {/* Best For */}

@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "seed:content": "npx tsx scripts/seed-content.ts"
+    "seed:content": "npx tsx scripts/seed-content.ts",
+    "seed:filters": "npx tsx scripts/seed-filters.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.89.0",
