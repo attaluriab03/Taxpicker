@@ -11,12 +11,6 @@ import StarRating from '@/components/tools/StarRating'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion'
-import {
   Check,
   X,
   ExternalLink,
@@ -27,8 +21,10 @@ import {
   FileCheck,
   ThumbsUp,
   ThumbsDown,
+  ChevronDown,
 } from 'lucide-react'
 import AffiliateButton from '@/components/tools/AffiliateButton'
+import ReviewsSection from '@/components/tools/ReviewsSection'
 
 async function getTool(slug: string): Promise<Tool | null> {
   const { data } = await supabase
@@ -147,18 +143,6 @@ export default async function ToolDetailPage({
 
   if (!tool) notFound()
 
-  const pricingTiers = tool.pricing_details
-    ? tool.pricing_details.split('.').filter(Boolean)
-    : []
-
-  const faqs = [
-    { q: `Does ${tool.name} support my country?`, a: tool.supported_countries.length > 0 ? `${tool.name} supports the following countries: ${tool.supported_countries.join(', ')}.` : 'Please check the official website for country support.' },
-    { q: 'Can it import transactions automatically?', a: tool.supported_exchanges.length > 0 ? `Yes — ${tool.name} supports automatic imports from ${tool.supported_exchanges.slice(0, 5).join(', ')}${tool.supported_exchanges.length > 5 ? ` and ${tool.supported_exchanges.length - 5} more exchanges` : ''}.` : 'Check the official website for import options.' },
-    { q: 'What is the pricing structure?', a: tool.pricing_details || `${tool.name} offers ${tool.pricing_type} pricing. Visit the official website for current pricing.` },
-    { q: 'Is customer support available?', a: `Yes, ${tool.name} provides customer support. Visit their official website for contact options.` },
-    { q: 'Can I export my tax reports?', a: tool.tax_report_types.length > 0 ? `${tool.name} supports the following report types: ${tool.tax_report_types.join(', ')}.` : 'Export options are available — check the official website for details.' },
-  ]
-
   return (
     <>
       <ToolJsonLd tool={tool} />
@@ -203,51 +187,48 @@ export default async function ToolDetailPage({
             </div>
 
             {/* Pricing Plans */}
-            {(tool.pricing_type || tool.pricing_details) && (
+            {tool.pricing_type && tool.pricing_tiers && tool.pricing_tiers.length > 0 && (
               <section>
                 <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
                   <span className="text-slate-400">$</span> Pricing Plans
                 </h2>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  {tool.pricing_type === 'free' ? (
-                    <div className="border border-slate-200 rounded-xl p-4 text-center">
-                      <div className="text-xs font-medium text-slate-500 mb-1">Free</div>
-                      <div className="text-2xl font-bold text-slate-900">$0</div>
-                      <div className="text-xs text-slate-500 mt-1">Forever free</div>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="border border-slate-200 rounded-xl p-4 text-center">
-                        <div className="text-xs font-medium text-slate-500 mb-1">Free</div>
-                        <div className="text-2xl font-bold text-slate-900">$0</div>
-                        <div className="text-xs text-slate-500 mt-1">Basic features</div>
-                      </div>
-                      <div className="border border-slate-200 rounded-xl p-4 text-center">
-                        <div className="text-xs font-medium text-slate-500 mb-1">Starter</div>
-                        <div className="text-2xl font-bold text-slate-900">
-                          ${tool.price_from ? Math.round(tool.price_from / 12) : 4}
-                          <span className="text-sm font-normal text-slate-500">/mo</span>
+                  {tool.pricing_tiers.map((tier, i) => {
+                    const priceNum = parseFloat(tier.price)
+                    const displayPrice = tier.price === ''
+                      ? '—'
+                      : isNaN(priceNum)
+                      ? tier.price
+                      : priceNum === 0
+                      ? 'Free'
+                      : `$${tier.price}`
+                    const isNumericPaid = !isNaN(priceNum) && priceNum > 0
+                    return (
+                      <div
+                        key={i}
+                        className={`rounded-xl p-4 text-center relative ${
+                          tier.is_popular
+                            ? 'border-2 border-blue-500'
+                            : 'border border-slate-200'
+                        }`}
+                      >
+                        {tier.is_popular && (
+                          <div className="absolute -top-2.5 left-1/2 -translate-x-1/2">
+                            <span className="bg-blue-500 text-white text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap">
+                              Popular
+                            </span>
+                          </div>
+                        )}
+                        <div className={`text-xs font-medium mb-1 ${tier.is_popular ? 'text-blue-600' : 'text-slate-500'}`}>
+                          {tier.name || `Tier ${i + 1}`}
                         </div>
-                        <div className="text-xs text-slate-500 mt-1">Essential tools</div>
+                        <div className="text-2xl font-bold text-slate-900">{displayPrice}</div>
+                        {isNumericPaid && (
+                          <div className="text-xs text-slate-500 mt-1">per year</div>
+                        )}
                       </div>
-                      <div className="border-2 border-blue-500 rounded-xl p-4 text-center relative">
-                        <div className="absolute -top-2 left-1/2 -translate-x-1/2">
-                          <span className="bg-blue-500 text-white text-xs font-semibold px-2 py-0.5 rounded-full">Popular</span>
-                        </div>
-                        <div className="text-xs font-medium text-blue-600 mb-1">Pro</div>
-                        <div className="text-2xl font-bold text-slate-900">
-                          ${tool.price_from ? Math.round(tool.price_from / 8) : 17}
-                          <span className="text-sm font-normal text-slate-500">/mo</span>
-                        </div>
-                        <div className="text-xs text-slate-500 mt-1">Advanced features</div>
-                      </div>
-                      <div className="border border-slate-200 rounded-xl p-4 text-center">
-                        <div className="text-xs font-medium text-slate-500 mb-1">Enterprise</div>
-                        <div className="text-2xl font-bold text-slate-900">Custom</div>
-                        <div className="text-xs text-slate-500 mt-1">Full suite</div>
-                      </div>
-                    </>
-                  )}
+                    )
+                  })}
                 </div>
               </section>
             )}
@@ -307,39 +288,33 @@ export default async function ToolDetailPage({
             )}
 
             {/* FAQs */}
-            <section>
-              <h2 className="text-lg font-semibold text-slate-900 mb-4">Frequently Asked Questions</h2>
-              <Accordion type="single" collapsible className="border border-slate-200 rounded-xl overflow-hidden">
-                {faqs.map((faq, i) => (
-                  <AccordionItem key={i} value={`faq-${i}`} className="px-4 last:border-0">
-                    <AccordionTrigger className="text-sm font-medium text-slate-900">
-                      {faq.q}
-                    </AccordionTrigger>
-                    <AccordionContent>{faq.a}</AccordionContent>
-                  </AccordionItem>
-                ))}
-              </Accordion>
-            </section>
+            {tool.faqs && tool.faqs.length > 0 && (
+              <section>
+                <h2 className="text-lg font-semibold text-slate-900 mb-4">Frequently Asked Questions</h2>
+                <div className="space-y-2">
+                  {tool.faqs.map((faq, index) => (
+                    <details key={index} className="border border-slate-200 rounded-lg group">
+                      <summary className="px-4 py-3 font-medium text-sm text-slate-900 cursor-pointer list-none flex items-center justify-between hover:bg-slate-50 rounded-lg transition-colors">
+                        {faq.question}
+                        <ChevronDown className="h-4 w-4 text-slate-400 transition-transform group-open:rotate-180 shrink-0 ml-2" />
+                      </summary>
+                      <div className="px-4 py-3 text-slate-600 text-sm border-t border-slate-100">
+                        {faq.answer}
+                      </div>
+                    </details>
+                  ))}
+                </div>
+              </section>
+            )}
 
             {/* Reviews */}
             {reviews.length > 0 && (
               <section>
-                <h2 className="text-lg font-semibold text-slate-900 mb-4">User Reviews</h2>
-                <div className="space-y-4">
-                  {reviews.map((review) => (
-                    <div key={review.id} className="border border-slate-200 rounded-xl p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium text-slate-700">
-                          {review.author || 'Anonymous'}
-                        </span>
-                        <StarRating rating={review.rating} size="sm" />
-                      </div>
-                      {review.comment && (
-                        <p className="text-sm text-slate-600">{review.comment}</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                <h2 className="text-lg font-semibold text-slate-900 mb-4">
+                  User Reviews
+                  <span className="ml-2 text-sm font-normal text-slate-400">({reviews.length})</span>
+                </h2>
+                <ReviewsSection reviews={reviews} />
               </section>
             )}
 

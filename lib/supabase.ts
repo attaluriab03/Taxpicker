@@ -67,6 +67,13 @@ export type Tool = {
   website_url: string | null
   pricing_type: 'free' | 'freemium' | 'paid'
   price_from: number | null
+  price_starter: number | null
+  price_pro: number | null
+  price_premium: number | null
+  price_enterprise: string | null
+  price_starter_label: string | null
+  price_pro_label: string | null
+  price_premium_label: string | null
   pricing_details: string | null
   features: string[]
   supported_countries: string[]
@@ -76,6 +83,8 @@ export type Tool = {
   pros: string[]
   cons: string[]
   best_for: string[]
+  faqs: Array<{ question: string; answer: string }> | null
+  pricing_tiers: Array<{ name: string; price: string; is_popular: boolean }> | null
   affiliate_url: string
   rating: number | null
   review_count?: number

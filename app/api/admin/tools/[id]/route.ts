@@ -27,6 +27,7 @@ export async function PUT(
     revalidatePath('/admin')
     revalidatePath('/admin/tools')
     revalidatePath('/tools/[slug]', 'page')
+    if (data?.slug) revalidatePath(`/tools/${data.slug}`)
 
     return NextResponse.json(data)
   } catch (err: any) {
