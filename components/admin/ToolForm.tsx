@@ -20,6 +20,7 @@ import FilterMultiSelect, { type FilterOption } from './FilterMultiSelect'
 import VerificationChecklist from './VerificationChecklist'
 import AutoFillButton from './AutoFillButton'
 import ConfirmDialog from './ConfirmDialog'
+import FieldError from './FieldError'
 import { toast } from '@/lib/use-toast'
 import type { Tool } from '@/lib/supabase'
 import { Loader2, Save, Send } from 'lucide-react'
@@ -102,6 +103,7 @@ export default function ToolForm({ initialData, toolId }: ToolFormProps) {
   const [, startTransition] = useTransition()
   const [saving, setSaving] = useState(false)
   const [verificationPassed, setVerificationPassed] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [priceRangeOptions, setPriceRangeOptions] = useState<Array<{ value: string; label: string; metadata?: { max?: number } | null }>>([])
   const [filterOptions, setFilterOptions] = useState<FilterOptionsMap>({
     region: [],
@@ -147,6 +149,46 @@ export default function ToolForm({ initialData, toolId }: ToolFormProps) {
 
   const set = <K extends keyof ToolFormData>(key: K, value: ToolFormData[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }))
+    setFieldErrors((prev) => { const next = { ...prev }; delete next[key as string]; return next })
+  }
+
+  function isValidHttpsUrl(val: string) {
+    if (!val) return true
+    try { return new URL(val).protocol === 'https:' } catch { return false }
+  }
+
+  function setUrlError(field: string, val: string, label: string) {
+    if (val && !isValidHttpsUrl(val)) {
+      setFieldErrors((prev) => ({ ...prev, [field]: `${label} must be a valid https:// URL` }))
+    }
+  }
+
+  function validateForm(publish: boolean): boolean {
+    const errs: Record<string, string> = {}
+    if (!form.name.trim()) errs.name = 'Tool name is required'
+    else if (form.name.length > 100) errs.name = 'Tool name must be under 100 characters'
+    if (!form.affiliate_url.trim()) errs.affiliate_url = 'Affiliate URL is required'
+    else if (!isValidHttpsUrl(form.affiliate_url)) errs.affiliate_url = 'Affiliate URL must be a valid https:// URL'
+    if (form.website_url && !isValidHttpsUrl(form.website_url)) errs.website_url = 'Website URL must be a valid https:// URL'
+    if (form.logo_url && !isValidHttpsUrl(form.logo_url)) errs.logo_url = 'Logo URL must be a valid https:// URL'
+    if (form.description && form.description.length > 1000) errs.description = 'Description must be under 1000 characters'
+    if (form.pricing_details && form.pricing_details.length > 200) errs.pricing_details = 'Pricing notes must be under 200 characters'
+    form.pricing_tiers.forEach((tier, i) => {
+      if (tier.name && tier.name.length > 50) errs[`tier_name_${i}`] = `Tier ${i + 1} name must be under 50 characters`
+      if (tier.price) {
+        const allowed = ['', 'Free', 'Custom', 'Contact us', 'TBD']
+        if (!allowed.includes(tier.price)) {
+          const num = parseFloat(tier.price)
+          if (isNaN(num) || num < 0) errs[`tier_price_${i}`] = `Tier ${i + 1} price must be a positive number, 0, "Free", or "Custom"`
+        }
+      }
+    })
+    form.faqs.forEach((faq, i) => {
+      if (faq.question && faq.question.length > 300) errs[`faq_question_${i}`] = `FAQ ${i + 1} question must be under 300 characters`
+      if (faq.answer && faq.answer.length > 1000) errs[`faq_answer_${i}`] = `FAQ ${i + 1} answer must be under 1000 characters`
+    })
+    setFieldErrors(errs)
+    return Object.keys(errs).length === 0
   }
 
   // ── Pricing tier helpers ─────────────────────────────────────────────────
@@ -290,12 +332,9 @@ export default function ToolForm({ initialData, toolId }: ToolFormProps) {
 
   // ── Save ─────────────────────────────────────────────────────────────────
   const save = async (publish: boolean) => {
-    if (!form.name) {
-      toast({ variant: 'destructive', title: 'Name is required' })
-      return
-    }
-    if (!form.affiliate_url) {
-      toast({ variant: 'destructive', title: 'Affiliate URL is required' })
+    if (!validateForm(publish)) {
+      toast({ variant: 'destructive', title: 'Please fix the errors below' })
+      document.querySelector('[data-tool-form-top]')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
       return
     }
 
@@ -358,7 +397,7 @@ export default function ToolForm({ initialData, toolId }: ToolFormProps) {
   const wasPublished = !!initialData?.is_published
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className="max-w-4xl mx-auto space-y-8" data-tool-form-top>
       {/* AI Auto-Fill */}
       <div className="bg-blue-50 border border-blue-200 rounded-xl p-5">
         <div className="flex items-start justify-between gap-4">
@@ -378,7 +417,10 @@ export default function ToolForm({ initialData, toolId }: ToolFormProps) {
 
       {/* Basic info */}
       <section className="bg-white rounded-xl border border-slate-200 p-6">
-        <h2 className="text-base font-semibold text-slate-900 mb-5">Basic Information</h2>
+        <h2 className="text-base font-semibold text-slate-900 mb-1">Basic Information</h2>
+        <p className="text-xs text-slate-400 mb-5">
+          Fields marked <span className="text-red-500">*</span> are required.
+        </p>
         <div className="grid sm:grid-cols-2 gap-4">
           <div className="space-y-1.5">
             <Label htmlFor="name">Tool Name <span className="text-red-500">*</span></Label>
@@ -387,7 +429,9 @@ export default function ToolForm({ initialData, toolId }: ToolFormProps) {
               value={form.name}
               onChange={(e) => set('name', e.target.value)}
               placeholder="e.g. CryptoTaxCalculator"
+              className={fieldErrors.name ? 'border-red-400 focus:ring-red-400' : ''}
             />
+            <FieldError error={fieldErrors.name} />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="website_url">Website URL</Label>
@@ -396,8 +440,11 @@ export default function ToolForm({ initialData, toolId }: ToolFormProps) {
               type="url"
               value={form.website_url}
               onChange={(e) => set('website_url', e.target.value)}
+              onBlur={() => setUrlError('website_url', form.website_url, 'Website URL')}
               placeholder="https://example.com"
+              className={fieldErrors.website_url ? 'border-red-400 focus:ring-red-400' : ''}
             />
+            <FieldError error={fieldErrors.website_url} />
           </div>
           <div className="sm:col-span-2 space-y-1.5">
             <Label htmlFor="description">Description</Label>
@@ -407,7 +454,9 @@ export default function ToolForm({ initialData, toolId }: ToolFormProps) {
               onChange={(e) => set('description', e.target.value)}
               placeholder="2-3 sentences describing the tool..."
               rows={3}
+              className={fieldErrors.description ? 'border-red-400 focus:ring-red-400' : ''}
             />
+            <FieldError error={fieldErrors.description} />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="logo_url">Logo URL</Label>
@@ -416,9 +465,12 @@ export default function ToolForm({ initialData, toolId }: ToolFormProps) {
               type="url"
               value={form.logo_url}
               onChange={(e) => set('logo_url', e.target.value)}
+              onBlur={() => setUrlError('logo_url', form.logo_url, 'Logo URL')}
               placeholder="https://example.com/logo.png"
+              className={fieldErrors.logo_url ? 'border-red-400 focus:ring-red-400' : ''}
             />
             <p className="text-xs text-slate-400">Upload to Supabase Storage and paste the public URL</p>
+            <FieldError error={fieldErrors.logo_url} />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="affiliate_url">Affiliate URL <span className="text-red-500">*</span></Label>
@@ -427,8 +479,11 @@ export default function ToolForm({ initialData, toolId }: ToolFormProps) {
               type="url"
               value={form.affiliate_url}
               onChange={(e) => set('affiliate_url', e.target.value)}
+              onBlur={() => setUrlError('affiliate_url', form.affiliate_url, 'Affiliate URL')}
               placeholder="https://example.com/?ref=taxpicker"
+              className={fieldErrors.affiliate_url ? 'border-red-400 focus:ring-red-400' : ''}
             />
+            <FieldError error={fieldErrors.affiliate_url} />
           </div>
         </div>
       </section>
@@ -517,18 +572,22 @@ export default function ToolForm({ initialData, toolId }: ToolFormProps) {
                   <Label>Plan Name</Label>
                   <Input
                     value={tier.name}
-                    onChange={(e) => updateTier(index, 'name', e.target.value)}
+                    onChange={(e) => { updateTier(index, 'name', e.target.value); setFieldErrors((p) => { const n = { ...p }; delete n[`tier_name_${index}`]; return n }) }}
                     placeholder="e.g. Free, Starter, Pro, Enterprise"
+                    className={fieldErrors[`tier_name_${index}`] ? 'border-red-400 focus:ring-red-400' : ''}
                   />
+                  <FieldError error={fieldErrors[`tier_name_${index}`]} />
                 </div>
                 <div className="space-y-1">
                   <Label>Price</Label>
                   <Input
                     value={tier.price}
-                    onChange={(e) => updateTier(index, 'price', e.target.value)}
+                    onChange={(e) => { updateTier(index, 'price', e.target.value); setFieldErrors((p) => { const n = { ...p }; delete n[`tier_price_${index}`]; return n }) }}
                     placeholder="49 or Custom"
+                    className={fieldErrors[`tier_price_${index}`] ? 'border-red-400 focus:ring-red-400' : ''}
                   />
                   <p className="text-xs text-slate-400">Number = USD/yr · Text = displayed as-is</p>
+                  <FieldError error={fieldErrors[`tier_price_${index}`]} />
                 </div>
               </div>
             </div>
@@ -694,21 +753,34 @@ export default function ToolForm({ initialData, toolId }: ToolFormProps) {
                 </Button>
               </div>
               <div className="space-y-1.5">
-                <Label>Question</Label>
+                <div className="flex items-center justify-between">
+                  <Label>Question</Label>
+                  <span className={`text-xs ${faq.question.length > 300 ? 'text-red-500' : 'text-slate-400'}`}>{faq.question.length}/300</span>
+                </div>
                 <Input
                   value={faq.question}
-                  onChange={(e) => updateFaq(index, 'question', e.target.value)}
+                  onChange={(e) => { updateFaq(index, 'question', e.target.value); setFieldErrors((p) => { const n = { ...p }; delete n[`faq_question_${index}`]; return n }) }}
                   placeholder="e.g. Does this tool support DeFi transactions?"
+                  className={fieldErrors[`faq_question_${index}`] ? 'border-red-400 focus:ring-red-400' : ''}
                 />
+                <FieldError error={fieldErrors[`faq_question_${index}`]} />
+                {faq.question && !faq.question.trim().endsWith('?') && !fieldErrors[`faq_question_${index}`] && (
+                  <p className="text-amber-500 text-xs">Tip: Questions typically end with ?</p>
+                )}
               </div>
               <div className="space-y-1.5">
-                <Label>Answer</Label>
+                <div className="flex items-center justify-between">
+                  <Label>Answer</Label>
+                  <span className={`text-xs ${faq.answer.length > 1000 ? 'text-red-500' : 'text-slate-400'}`}>{faq.answer.length}/1000</span>
+                </div>
                 <Textarea
                   value={faq.answer}
-                  onChange={(e) => updateFaq(index, 'answer', e.target.value)}
+                  onChange={(e) => { updateFaq(index, 'answer', e.target.value); setFieldErrors((p) => { const n = { ...p }; delete n[`faq_answer_${index}`]; return n }) }}
                   placeholder="Enter the answer..."
                   rows={3}
+                  className={fieldErrors[`faq_answer_${index}`] ? 'border-red-400 focus:ring-red-400' : ''}
                 />
+                <FieldError error={fieldErrors[`faq_answer_${index}`]} />
               </div>
             </div>
           ))}

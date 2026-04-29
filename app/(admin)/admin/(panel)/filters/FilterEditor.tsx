@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { toast } from '@/lib/use-toast'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
 import AdminTooltip from '@/components/admin/AdminTooltip'
+import FieldError from '@/components/admin/FieldError'
 import { cn } from '@/lib/utils'
 
 interface FilterOption {
@@ -52,6 +53,23 @@ export default function FilterEditor({ categories }: FilterEditorProps) {
   )
   const [adding, setAdding] = useState<string | null>(null)
   const [expandedTabs, setExpandedTabs] = useState<Record<string, boolean>>({})
+  const [formErrors, setFormErrors] = useState<Record<string, Record<string, string>>>({})
+
+  function autoValue(label: string): string {
+    return label.toLowerCase().trim().replace(/\s+/g, '_').replace(/[^a-z0-9_.]/g, '').slice(0, 50)
+  }
+
+  function clearFormError(cat: string, field: string) {
+    setFormErrors((prev) => {
+      const next = { ...prev, [cat]: { ...(prev[cat] ?? {}) } }
+      delete next[cat][field]
+      return next
+    })
+  }
+
+  function getFormError(cat: string, field: string): string | undefined {
+    return formErrors[cat]?.[field]
+  }
 
   const COLLAPSE_THRESHOLD = 10
 
@@ -124,39 +142,73 @@ export default function FilterEditor({ categories }: FilterEditorProps) {
     })
   }
 
-  const setForm = (cat: string, field: keyof AddForm, val: string) => {
-    setNewForms((prev) => ({ ...prev, [cat]: { ...prev[cat], [field]: val } }))
+  const setForm = (cat: string, field: keyof AddForm, val: string, skipAutoValue = false) => {
+    setNewForms((prev) => {
+      const updated: AddForm = { ...prev[cat], [field]: val }
+      // Auto-generate value from label unless the user has manually edited value
+      if (field === 'label' && !skipAutoValue && cat !== 'price_range') {
+        updated.value = autoValue(val)
+      }
+      return { ...prev, [cat]: updated }
+    })
+    clearFormError(cat, field)
   }
 
   // ── Actions ───────────────────────────────────────────────────────────────────
 
   const handleAdd = async (category: string) => {
     const form = newForms[category]
-    if (!form?.label.trim() || !form?.value.trim()) {
-      toast({ variant: 'destructive', title: 'Label and Value are required' })
-      return
-    }
+    const errs: Record<string, string> = {}
 
-    // Validate Max Price for price_range
     if (category === 'price_range') {
       const n = parseInt(form.maxPrice, 10)
-      if (!form.maxPrice || isNaN(n) || n <= 0) {
-        toast({ variant: 'destructive', title: 'Max Price must be a positive number' })
-        return
+      if (!form.maxPrice) errs.maxPrice = 'Max price is required'
+      else if (isNaN(n)) errs.maxPrice = 'Max price must be a whole number'
+      else if (n <= 0) errs.maxPrice = 'Max price must be greater than $0'
+      else if (n > 100000) errs.maxPrice = 'Max price seems too high — please check the value'
+      else {
+        const duplicate = (optionsByCategory[category] ?? []).find((o) => o.value === `under_${n}`)
+        if (duplicate) errs.maxPrice = `"Under $${n}/year" already exists`
       }
+    } else {
+      if (!form?.label.trim()) errs.label = 'Label is required'
+      else if (form.label.length > 100) errs.label = 'Label must be under 100 characters'
+      if (!form?.value.trim()) errs.value = 'Value is required'
+      else if (form.value.length > 50) errs.value = 'Value must be under 50 characters'
+      else {
+        const duplicate = (optionsByCategory[category] ?? []).find(
+          (o) => o.value.toLowerCase() === form.value.trim().toLowerCase()
+        )
+        if (duplicate) errs.value = `"${form.value.trim()}" already exists in this category`
+      }
+      if (form.order && isNaN(parseInt(form.order, 10))) errs.order = 'Display order must be a whole number'
     }
+
+    if (Object.keys(errs).length > 0) {
+      setFormErrors((prev) => ({ ...prev, [category]: errs }))
+      return
+    }
+    setFormErrors((prev) => ({ ...prev, [category]: {} }))
 
     setAdding(category)
     try {
+      let label = form.label.trim()
+      let value = form.value.trim()
       const body: Record<string, unknown> = {
         category,
-        label: form.label.trim(),
-        value: form.value.trim(),
         display_order: parseInt(form.order || '0', 10),
       }
+
       if (category === 'price_range') {
-        body.metadata = { max: parseInt(form.maxPrice, 10) }
+        const n = parseInt(form.maxPrice, 10)
+        label = `Under $${n.toLocaleString()}/year`
+        value = `under_${n}`
+        body.metadata = { max: n }
+        body.display_order = n
       }
+
+      body.label = label
+      body.value = value
 
       const res = await fetch('/api/admin/filter-options/manage', {
         method: 'POST',
@@ -435,53 +487,77 @@ export default function FilterEditor({ categories }: FilterEditorProps) {
           <p className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-1.5">
             <Plus className="h-4 w-4" /> Add Option
           </p>
-          <div className={cn('grid gap-3', isPriceRange ? 'sm:grid-cols-4' : 'sm:grid-cols-3')}>
-            <div className="space-y-1">
-              <Label className="text-xs">Label <span className="text-red-500">*</span></Label>
-              <Input
-                value={form.label}
-                onChange={(e) => setForm(activeTab, 'label', e.target.value)}
-                placeholder={labelPlaceholder}
-                className="h-9 text-sm"
-              />
-              <p className="text-xs text-slate-400">Shown in the filter dropdown</p>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Value <span className="text-red-500">*</span></Label>
-              <Input
-                value={form.value}
-                onChange={(e) => setForm(activeTab, 'value', e.target.value)}
-                placeholder={valuePlaceholder}
-                className="h-9 text-sm font-mono"
-              />
-              <p className="text-xs text-slate-400">Unique key per category</p>
-            </div>
-            {isPriceRange && (
+
+          {isPriceRange ? (
+            /* Price range: number-only input with live label preview */
+            <div className="space-y-3">
               <div className="space-y-1">
                 <Label className="text-xs">Max Price (USD/year) <span className="text-red-500">*</span></Label>
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-500 text-sm flex-shrink-0">Under $</span>
+                  <Input
+                    type="number"
+                    value={form.maxPrice}
+                    onChange={(e) => setForm(activeTab, 'maxPrice', e.target.value)}
+                    placeholder="e.g. 50"
+                    className={cn('h-9 text-sm w-32', getFormError(activeTab, 'maxPrice') ? 'border-red-400 focus:ring-red-400' : '')}
+                    min="1"
+                    max="100000"
+                    step="1"
+                  />
+                  <span className="text-slate-500 text-sm flex-shrink-0">/year</span>
+                </div>
+                <FieldError error={getFormError(activeTab, 'maxPrice')} />
+                {form.maxPrice && !isNaN(parseInt(form.maxPrice, 10)) && parseInt(form.maxPrice, 10) > 0 && !getFormError(activeTab, 'maxPrice') && (
+                  <p className="text-xs text-slate-500 mt-1">
+                    Will be added as:{' '}
+                    <span className="font-medium text-slate-700">
+                      "Under ${parseInt(form.maxPrice, 10).toLocaleString()}/year"
+                    </span>
+                  </p>
+                )}
+                <p className="text-xs text-slate-400">Tools with a starting price at or below this amount will match this filter.</p>
+              </div>
+            </div>
+          ) : (
+            /* All other categories: label + value + order */
+            <div className={cn('grid gap-3', 'sm:grid-cols-3')}>
+              <div className="space-y-1">
+                <Label className="text-xs">Label <span className="text-red-500">*</span></Label>
+                <Input
+                  value={form.label}
+                  onChange={(e) => setForm(activeTab, 'label', e.target.value)}
+                  placeholder={labelPlaceholder}
+                  className={cn('h-9 text-sm', getFormError(activeTab, 'label') ? 'border-red-400 focus:ring-red-400' : '')}
+                />
+                <FieldError error={getFormError(activeTab, 'label')} />
+                {!getFormError(activeTab, 'label') && <p className="text-xs text-slate-400">Shown in the filter dropdown</p>}
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Value <span className="text-red-500">*</span></Label>
+                <Input
+                  value={form.value}
+                  onChange={(e) => setForm(activeTab, 'value', e.target.value, true)}
+                  placeholder={valuePlaceholder}
+                  className={cn('h-9 text-sm font-mono', getFormError(activeTab, 'value') ? 'border-red-400 focus:ring-red-400' : '')}
+                />
+                <FieldError error={getFormError(activeTab, 'value')} />
+                {!getFormError(activeTab, 'value') && <p className="text-xs text-slate-400">Auto-generated from label. Edit if needed.</p>}
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Display Order</Label>
                 <Input
                   type="number"
-                  value={form.maxPrice}
-                  onChange={(e) => setForm(activeTab, 'maxPrice', e.target.value)}
-                  placeholder="e.g. 50"
-                  className="h-9 text-sm"
-                  min="1"
+                  value={form.order}
+                  onChange={(e) => setForm(activeTab, 'order', e.target.value)}
+                  className={cn('h-9 text-sm', getFormError(activeTab, 'order') ? 'border-red-400 focus:ring-red-400' : '')}
+                  min="0"
                 />
-                <p className="text-xs text-slate-400">Tools with price_from ≤ this appear in results</p>
+                <FieldError error={getFormError(activeTab, 'order')} />
+                {!getFormError(activeTab, 'order') && <p className="text-xs text-slate-400">Lower = shown first</p>}
               </div>
-            )}
-            <div className="space-y-1">
-              <Label className="text-xs">Display Order</Label>
-              <Input
-                type="number"
-                value={form.order}
-                onChange={(e) => setForm(activeTab, 'order', e.target.value)}
-                className="h-9 text-sm"
-                min="0"
-              />
-              <p className="text-xs text-slate-400">Lower = shown first</p>
             </div>
-          </div>
+          )}
           <div className="mt-3 flex justify-end">
             <Button
               type="button"

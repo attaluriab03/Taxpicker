@@ -5,6 +5,12 @@ import { Loader2, Save, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/lib/use-toast'
 
+const TYPE_MAX: Record<ContentField['type'], number> = {
+  text: 500,
+  textarea: 2000,
+  richtext: 50000,
+}
+
 export interface ContentField {
   section: string
   key: string
@@ -121,29 +127,54 @@ export default function ContentEditor({ page, sections }: Props) {
                     {field.hint && (
                       <p className="text-xs text-slate-400 mb-1.5">{field.hint}</p>
                     )}
-                    {field.type === 'text' ? (
-                      <input
-                        type="text"
-                        value={val}
-                        onChange={(e) => setValue(sk, e.target.value)}
-                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
-                      />
-                    ) : field.type === 'textarea' ? (
-                      <textarea
-                        rows={3}
-                        value={val}
-                        onChange={(e) => setValue(sk, e.target.value)}
-                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow resize-y"
-                      />
-                    ) : (
-                      <textarea
-                        rows={14}
-                        value={val}
-                        onChange={(e) => setValue(sk, e.target.value)}
-                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-mono text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow resize-y"
-                        placeholder="Markdown supported…"
-                      />
-                    )}
+                    {(() => {
+                      const max = TYPE_MAX[field.type]
+                      const overLimit = val.length > max
+                      const nearLimit = val.length > max * 0.9
+                      const countColor = overLimit ? 'text-red-500' : nearLimit ? 'text-amber-500' : 'text-slate-300'
+                      const borderClass = overLimit ? 'border-red-400 focus:ring-red-400' : 'border-slate-200'
+                      if (field.type === 'text') return (
+                        <div>
+                          <input
+                            type="text"
+                            value={val}
+                            onChange={(e) => setValue(sk, e.target.value)}
+                            className={`w-full rounded-lg border px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow ${borderClass}`}
+                          />
+                          <div className="flex justify-end mt-0.5">
+                            <span className={`text-xs ${countColor}`}>{val.length}/{max}</span>
+                          </div>
+                        </div>
+                      )
+                      if (field.type === 'textarea') return (
+                        <div>
+                          <textarea
+                            rows={3}
+                            value={val}
+                            onChange={(e) => setValue(sk, e.target.value)}
+                            className={`w-full rounded-lg border px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow resize-y ${borderClass}`}
+                          />
+                          <div className="flex justify-end mt-0.5">
+                            <span className={`text-xs ${countColor}`}>{val.length}/{max}</span>
+                          </div>
+                        </div>
+                      )
+                      const wordCount = val.trim() ? val.trim().split(/\s+/).length : 0
+                      return (
+                        <div>
+                          <textarea
+                            rows={14}
+                            value={val}
+                            onChange={(e) => setValue(sk, e.target.value)}
+                            className={`w-full rounded-lg border px-3 py-2 text-sm font-mono text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow resize-y ${borderClass}`}
+                            placeholder="Markdown supported…"
+                          />
+                          <div className="flex justify-end mt-0.5">
+                            <span className={`text-xs ${countColor}`}>~{wordCount} words</span>
+                          </div>
+                        </div>
+                      )
+                    })()}
                   </div>
                 )
               })}

@@ -16,6 +16,7 @@ import {
 import { Button } from '@/components/ui/button'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
 import AdminTooltip from '@/components/admin/AdminTooltip'
+import FieldError from '@/components/admin/FieldError'
 import { toast } from '@/lib/use-toast'
 
 interface FaqItem {
@@ -51,6 +52,8 @@ export default function FaqItemsManager() {
   const [newQuestion, setNewQuestion] = useState('')
   const [newAnswer, setNewAnswer] = useState('')
   const [addingNew, setAddingNew] = useState(false)
+  const [addErrors, setAddErrors] = useState<{ question?: string; answer?: string }>({})
+  const [editErrors, setEditErrors] = useState<{ question?: string; answer?: string }>({})
 
   const load = useCallback(async () => {
     try {
@@ -118,11 +121,18 @@ export default function FaqItemsManager() {
 
   async function handleSaveEdit() {
     if (!editState) return
+    const errs: { question?: string; answer?: string } = {}
+    if (!editState.question.trim()) errs.question = 'Question is required'
+    else if (editState.question.length > 300) errs.question = 'Question must be under 300 characters'
+    if (!editState.answer.trim()) errs.answer = 'Answer is required'
+    else if (editState.answer.length > 2000) errs.answer = 'Answer must be under 2000 characters'
+    if (Object.keys(errs).length > 0) { setEditErrors(errs); return }
+    setEditErrors({})
     setSavingEdit(true)
     try {
       const updated = await patchItem(editState.id, {
-        question: editState.question,
-        answer: editState.answer,
+        question: editState.question.trim(),
+        answer: editState.answer.trim(),
       })
       setItems((prev) => prev.map((i) => i.id === editState.id ? { ...i, question: updated.question, answer: updated.answer } : i))
       setEditState(null)
@@ -151,10 +161,13 @@ export default function FaqItemsManager() {
   }
 
   async function handleAddNew() {
-    if (!newQuestion.trim() || !newAnswer.trim()) {
-      toast({ variant: 'destructive', title: 'Question and answer are required' })
-      return
-    }
+    const errs: { question?: string; answer?: string } = {}
+    if (!newQuestion.trim()) errs.question = 'Question is required'
+    else if (newQuestion.length > 300) errs.question = 'Question must be under 300 characters'
+    if (!newAnswer.trim()) errs.answer = 'Answer is required'
+    else if (newAnswer.length > 2000) errs.answer = 'Answer must be under 2000 characters'
+    if (Object.keys(errs).length > 0) { setAddErrors(errs); return }
+    setAddErrors({})
     setAddingNew(true)
     try {
       const res = await fetch('/api/admin/faq', {
@@ -194,7 +207,7 @@ export default function FaqItemsManager() {
         </div>
         <Button
           size="sm"
-          onClick={() => { setShowAddForm(true); setNewQuestion(''); setNewAnswer('') }}
+          onClick={() => { setShowAddForm(true); setNewQuestion(''); setNewAnswer(''); setAddErrors({}) }}
           className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5"
         >
           <Plus className="h-3.5 w-3.5" />
@@ -218,22 +231,37 @@ export default function FaqItemsManager() {
               {isEditing ? (
                 <div className="p-4 space-y-3">
                   <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Question</label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-medium text-slate-600">Question</label>
+                      <span className={`text-xs ${editState.question.length > 300 ? 'text-red-500' : 'text-slate-400'}`}>
+                        {editState.question.length}/300
+                      </span>
+                    </div>
                     <input
                       type="text"
                       value={editState.question}
-                      onChange={(e) => setEditState((s) => s ? { ...s, question: e.target.value } : s)}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      onChange={(e) => { setEditState((s) => s ? { ...s, question: e.target.value } : s); setEditErrors((p) => { const n = { ...p }; delete n.question; return n }) }}
+                      className={`w-full rounded-lg border px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${editErrors.question ? 'border-red-400' : 'border-slate-200'}`}
                     />
+                    <FieldError error={editErrors.question} />
+                    {editState.question && !editState.question.trim().endsWith('?') && !editErrors.question && (
+                      <p className="text-amber-500 text-xs mt-1">Tip: Questions typically end with ?</p>
+                    )}
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Answer</label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-medium text-slate-600">Answer</label>
+                      <span className={`text-xs ${editState.answer.length > 2000 ? 'text-red-500' : 'text-slate-400'}`}>
+                        {editState.answer.length}/2000
+                      </span>
+                    </div>
                     <textarea
                       rows={4}
                       value={editState.answer}
-                      onChange={(e) => setEditState((s) => s ? { ...s, answer: e.target.value } : s)}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y"
+                      onChange={(e) => { setEditState((s) => s ? { ...s, answer: e.target.value } : s); setEditErrors((p) => { const n = { ...p }; delete n.answer; return n }) }}
+                      className={`w-full rounded-lg border px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y ${editErrors.answer ? 'border-red-400' : 'border-slate-200'}`}
                     />
+                    <FieldError error={editErrors.answer} />
                   </div>
                   <div className="flex gap-2 justify-end">
                     <Button
@@ -351,25 +379,36 @@ export default function FaqItemsManager() {
           <div className="bg-white border-2 border-blue-200 rounded-xl p-4 space-y-3">
             <p className="text-sm font-medium text-slate-700">New FAQ Item</p>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Question</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-medium text-slate-600">Question <span className="text-red-500">*</span></label>
+                <span className={`text-xs ${newQuestion.length > 300 ? 'text-red-500' : 'text-slate-400'}`}>{newQuestion.length}/300</span>
+              </div>
               <input
                 type="text"
                 value={newQuestion}
-                onChange={(e) => setNewQuestion(e.target.value)}
+                onChange={(e) => { setNewQuestion(e.target.value); setAddErrors((p) => { const n = { ...p }; delete n.question; return n }) }}
                 placeholder="Enter the question…"
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className={`w-full rounded-lg border px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${addErrors.question ? 'border-red-400' : 'border-slate-200'}`}
                 autoFocus
               />
+              <FieldError error={addErrors.question} />
+              {newQuestion && !newQuestion.trim().endsWith('?') && !addErrors.question && (
+                <p className="text-amber-500 text-xs mt-1">Tip: Questions typically end with ?</p>
+              )}
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Answer</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-medium text-slate-600">Answer <span className="text-red-500">*</span></label>
+                <span className={`text-xs ${newAnswer.length > 2000 ? 'text-red-500' : 'text-slate-400'}`}>{newAnswer.length}/2000</span>
+              </div>
               <textarea
                 rows={4}
                 value={newAnswer}
-                onChange={(e) => setNewAnswer(e.target.value)}
+                onChange={(e) => { setNewAnswer(e.target.value); setAddErrors((p) => { const n = { ...p }; delete n.answer; return n }) }}
                 placeholder="Enter the answer…"
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y"
+                className={`w-full rounded-lg border px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y ${addErrors.answer ? 'border-red-400' : 'border-slate-200'}`}
               />
+              <FieldError error={addErrors.answer} />
             </div>
             <div className="flex gap-2 justify-end">
               <Button
