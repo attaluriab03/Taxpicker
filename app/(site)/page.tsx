@@ -285,9 +285,9 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       <section className="py-20 px-4 bg-white">
         <div className="mx-auto max-w-7xl">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-slate-900 mb-3">Why Use Crypto Tax Software?</h2>
+            <h2 className="text-3xl font-bold text-slate-900 mb-3">{getContent(content, 'why.section_title', 'Why Use Crypto Tax Software?')}</h2>
             <p className="text-lg text-slate-500">
-              Professionally manage your DeFi, trading, and staking activities and optimize your tax bill.
+              {getContent(content, 'why.section_description', 'Professionally manage your DeFi, trading, and staking activities and optimize your tax bill.')}
             </p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">

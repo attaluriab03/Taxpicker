@@ -234,3 +234,167 @@ The admin panel at `/admin` is protected by Supabase Auth. Only manually created
 - Monitor Anthropic API usage in the Anthropic console
 - Monitor Supabase storage usage
 - Check for Next.js security updates periodically
+
+---
+
+## 11. CMS — Editing Page Content
+
+### Overview
+
+Every user-facing text string on the public website (headings, descriptions, legal pages, etc.) is stored in the Supabase `site_content` table and editable through the admin panel at `/admin/content`. You never need to touch code to update these strings.
+
+Content is organised as: **page → section → key**. For example, the homepage hero heading is `homepage → hero → title_line_1`.
+
+---
+
+### How to edit page content
+
+1. Go to `/admin/content` in the admin panel
+2. Choose the page you want to edit from the sidebar (Homepage, About, FAQ, or a legal page)
+3. Edit the fields directly in the text boxes
+4. Click **Save Changes** in the sticky bar that appears at the bottom of the screen
+5. Changes are published immediately — reload the public page to confirm
+
+The sticky bar only appears when you have unsaved changes. It disappears automatically after a successful save.
+
+---
+
+### What can be edited per page
+
+#### Homepage (`/admin/content/homepage`)
+
+| Section | Fields |
+|---|---|
+| Hero Section | Trusted badge text, Headline line 1, Headline line 2, Hero description |
+| Metrics Bar | 4 metric number/label pairs (e.g. "50K+" / "Users Helped") |
+| Comparison Table | Section title (currently "Refine Results") |
+| "Why" Section | Section title and subtitle |
+| Feature Matrix | Section title and description |
+
+#### About (`/admin/content/about`)
+
+| Section | Fields |
+|---|---|
+| Hero | Page title, Page description |
+| Why Section | Section title, Section description |
+| Methodology | Section title, Section description |
+| Affiliate Disclosure | Section title |
+| CTA | Title, Description, Button text |
+
+#### FAQ Page (`/admin/content/faq`)
+
+| Section | Fields |
+|---|---|
+| Page Header | Page title, Page description |
+
+The individual FAQ items (questions and answers) are managed separately — see **Managing Global FAQ Items** below.
+
+#### Legal Pages
+
+Each legal page has three editable fields:
+
+| Field | Description |
+|---|---|
+| Page Title | The `<h1>` shown at the top of the page |
+| Last Updated | Date string shown below the title (e.g. "April 27, 2026") |
+| Page Content | Full page body in Markdown format |
+
+Legal pages and their admin paths:
+
+| Page | Admin path | Public URL |
+|---|---|---|
+| Privacy Policy | `/admin/content/privacy-policy` | `/privacy-policy` |
+| Terms of Use | `/admin/content/terms` | `/terms` |
+| Affiliate Disclosure | `/admin/content/affiliate-disclosure` | `/affiliate-disclosure` |
+| Cookie Policy | `/admin/content/cookie-policy` | `/cookie-policy` |
+| Disclaimer | `/admin/content/disclaimer` | `/disclaimer` |
+
+---
+
+### Markdown reference (for legal page content)
+
+Legal page body content is written in Markdown. Here are the most common elements:
+
+| Syntax | Output |
+|---|---|
+| `## Heading` | Large section heading |
+| `### Sub-heading` | Smaller sub-heading |
+| `**bold text**` | **Bold text** |
+| `*italic text*` | *Italic text* |
+| `[Link text](https://url.com)` | Clickable hyperlink |
+| `- Item` | Bulleted list item |
+| `1. Item` | Numbered list item |
+| `` `inline code` `` | Inline code |
+| `> blockquote` | Indented callout/quote |
+
+You can preview any changes by clicking the **Preview** button at the top of the legal page editor (opens the public page in a new tab). Remember to **Save Changes** before previewing — the preview shows the live database content.
+
+---
+
+### Editing tools (tool detail pages)
+
+Tool content — name, description, pricing, features, pros/cons, FAQs, and supported exchanges — is all managed through the **Tools** section of the admin panel.
+
+#### Editing a published tool
+
+1. Go to `/admin/tools` and find the tool
+2. Click **Edit**
+3. Make your changes
+4. Click **Save Changes** — changes publish immediately, no checklist required for existing tools
+5. To take a tool offline temporarily, click **Unpublish & Save as Draft**
+
+#### Adding / editing pricing tiers
+
+In the **Pricing** section of the tool form:
+
+- Click **+ Add Tier** to add a new pricing card
+- Set the tier name (e.g. "Starter", "Pro", "Business")
+- Enter the price — use a number (e.g. `49`) for numeric pricing, `0` for Free, or any text (e.g. `Custom`) for non-numeric values
+- Toggle the **Popular** switch on the tier you want to highlight — only one tier can be Popular at a time
+- Click the **×** on any tier card to remove it
+- Tiers display as cards on the public tool page; more than 4 wrap to a second row automatically
+
+#### Adding / editing tool FAQs
+
+In the **FAQs** section at the bottom of the tool form:
+
+- Click **+ Add FAQ** to add a new question/answer pair
+- Type the question and answer in the fields provided
+- FAQs display as a collapsible accordion on the public tool detail page
+- Reorder by dragging (or use the ↑ ↓ arrows if drag is unavailable)
+- Click **Remove** to delete a FAQ
+
+#### Managing user reviews for a tool
+
+In the **Reviews** section at the bottom of the tool form (only visible when editing an existing tool):
+
+- Existing reviews are listed with the reviewer name, rating, and comment
+- Click the trash icon to delete an inappropriate review (a confirmation dialog will appear)
+- To add a test review, fill in the **Add Review** form and click **Add Review**
+- Reviews display as cards on the public tool detail page; the first 3 are shown by default, the rest expand on click
+
+---
+
+### Managing global FAQ items (the FAQ page)
+
+The FAQ page at `/faq` displays a curated set of question/answer pairs managed in the `faq_items` table.
+
+1. Go to `/admin/content/faq` in the admin panel
+2. The **FAQ Items** section lists all existing questions
+3. To **add** a new item: fill in the question and answer in the form at the bottom and click **Add FAQ**
+4. To **edit** an item: click the **Edit** button on any row, update the fields, and click **Save**
+5. To **reorder** items: click **↑** or **↓** on any row to move it
+6. To **publish/unpublish** an item: toggle the **Published** switch — only published items appear on the public FAQ page
+7. To **delete** an item: click the trash icon and confirm the dialog
+
+---
+
+### Re-seeding content (after Supabase migration)
+
+If you migrate to a new Supabase project and need to re-populate all default content:
+
+```bash
+npx tsx scripts/seed-content.ts
+```
+
+This script upserts all site_content rows and inserts faq_items (skipped if already populated). Run it from the project root with `.env.local` present.

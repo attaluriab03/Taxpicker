@@ -45,6 +45,14 @@ const sections: ContentSection[] = [
     ],
   },
   {
+    title: '"Why" Section',
+    description: 'Heading and subtitle for the "Why Use Crypto Tax Software?" section.',
+    fields: [
+      { section: 'why', key: 'section_title', label: 'Section Title', type: 'text' },
+      { section: 'why', key: 'section_description', label: 'Section Description', type: 'text' },
+    ],
+  },
+  {
     title: 'Feature Matrix',
     description: 'Heading for the feature comparison matrix section.',
     fields: [

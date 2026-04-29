@@ -312,6 +312,18 @@ const siteContentRows: ContentRow[] = [
     value: '',
   },
 
+  // ── Homepage › why ───────────────────────────────────────────────────────
+  {
+    page: 'homepage', section: 'why', key: 'section_title',
+    label: 'Why Section Title', content_type: 'text',
+    value: 'Why Use Crypto Tax Software?',
+  },
+  {
+    page: 'homepage', section: 'why', key: 'section_description',
+    label: 'Why Section Description', content_type: 'text',
+    value: 'Professionally manage your DeFi, trading, and staking activities and optimize your tax bill.',
+  },
+
   // ── Homepage › feature_matrix ────────────────────────────────────────────
   {
     page: 'homepage', section: 'feature_matrix', key: 'section_title',
