@@ -24,6 +24,8 @@ interface Category {
   value: string
   label: string
   hint: string
+  labelExample: string
+  valueExample: string
 }
 
 interface FilterEditorProps {
@@ -49,6 +51,9 @@ export default function FilterEditor({ categories }: FilterEditorProps) {
     Object.fromEntries(categories.map((c) => [c.value, { label: '', value: '', order: '0', maxPrice: '' }]))
   )
   const [adding, setAdding] = useState<string | null>(null)
+  const [expandedTabs, setExpandedTabs] = useState<Record<string, boolean>>({})
+
+  const COLLAPSE_THRESHOLD = 10
 
   const [confirmDeactivate, setConfirmDeactivate] = useState<{ open: boolean; option: FilterOption | null }>({
     open: false, option: null,
@@ -233,7 +238,13 @@ export default function FilterEditor({ categories }: FilterEditorProps) {
   // ── Derived values ────────────────────────────────────────────────────────────
 
   const activeCategory = categories.find((c) => c.value === activeTab)
+  const labelPlaceholder = activeCategory ? `e.g. ${activeCategory.labelExample}` : ''
+  const valuePlaceholder = activeCategory ? `e.g. ${activeCategory.valueExample}` : ''
   const options = optionsByCategory[activeTab] ?? []
+  const isExpanded = expandedTabs[activeTab] ?? false
+  const isCollapsible = options.length > COLLAPSE_THRESHOLD
+  const visibleOptions = isCollapsible && !isExpanded ? options.slice(0, COLLAPSE_THRESHOLD) : options
+  const hiddenCount = options.length - COLLAPSE_THRESHOLD
   const form = newForms[activeTab] ?? { label: '', value: '', order: '0', maxPrice: '' }
   const deleteOption = confirmDelete.option
   const deleteCount = deleteOption ? (usageCounts[deleteOption.value] ?? 0) : 0
@@ -329,7 +340,7 @@ export default function FilterEditor({ categories }: FilterEditorProps) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {options.map((opt) => {
+                {visibleOptions.map((opt) => {
                   const usedBy = usageCounts[opt.value] ?? 0
                   const threshold = opt.metadata?.max
                   return (
@@ -401,6 +412,19 @@ export default function FilterEditor({ categories }: FilterEditorProps) {
                     </tr>
                   )
                 })}
+                {isCollapsible && (
+                  <tr>
+                    <td colSpan={isPriceRange ? 6 : 6} className="px-4 py-2.5 text-center">
+                      <button
+                        type="button"
+                        onClick={() => setExpandedTabs((prev) => ({ ...prev, [activeTab]: !isExpanded }))}
+                        className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
+                      >
+                        {isExpanded ? 'Show fewer' : `Show ${hiddenCount} more…`}
+                      </button>
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -417,7 +441,7 @@ export default function FilterEditor({ categories }: FilterEditorProps) {
               <Input
                 value={form.label}
                 onChange={(e) => setForm(activeTab, 'label', e.target.value)}
-                placeholder="e.g. Under $50/year"
+                placeholder={labelPlaceholder}
                 className="h-9 text-sm"
               />
               <p className="text-xs text-slate-400">Shown in the filter dropdown</p>
@@ -427,7 +451,7 @@ export default function FilterEditor({ categories }: FilterEditorProps) {
               <Input
                 value={form.value}
                 onChange={(e) => setForm(activeTab, 'value', e.target.value)}
-                placeholder="e.g. under_50"
+                placeholder={valuePlaceholder}
                 className="h-9 text-sm font-mono"
               />
               <p className="text-xs text-slate-400">Unique key per category</p>
