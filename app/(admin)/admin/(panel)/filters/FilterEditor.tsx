@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useTransition } from 'react'
-import { Trash2, Plus, Eye, EyeOff, AlertTriangle, RefreshCw } from 'lucide-react'
+import { Trash2, Plus, Eye, EyeOff, AlertTriangle, RefreshCw, Pencil, Check, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -10,6 +10,7 @@ import ConfirmDialog from '@/components/admin/ConfirmDialog'
 import AdminTooltip from '@/components/admin/AdminTooltip'
 import FieldError from '@/components/admin/FieldError'
 import { cn } from '@/lib/utils'
+import { lookupCountry, isValidRegionCode } from '@/lib/countries'
 
 interface FilterOption {
   id: string
@@ -37,8 +38,19 @@ interface AddForm {
   label: string
   value: string
   order: string
-  maxPrice: string  // price_range only
+  maxPrice: string
 }
+
+interface EditState {
+  id: string
+  label: string
+  value: string
+  order: string
+  maxPrice: string
+  category: string
+}
+
+const COLLAPSE_THRESHOLD = 10
 
 export default function FilterEditor({ categories }: FilterEditorProps) {
   const [activeTab, setActiveTab] = useState(categories[0]?.value ?? '')
@@ -55,23 +67,9 @@ export default function FilterEditor({ categories }: FilterEditorProps) {
   const [expandedTabs, setExpandedTabs] = useState<Record<string, boolean>>({})
   const [formErrors, setFormErrors] = useState<Record<string, Record<string, string>>>({})
 
-  function autoValue(label: string): string {
-    return label.toLowerCase().trim().replace(/\s+/g, '_').replace(/[^a-z0-9_.]/g, '').slice(0, 50)
-  }
-
-  function clearFormError(cat: string, field: string) {
-    setFormErrors((prev) => {
-      const next = { ...prev, [cat]: { ...(prev[cat] ?? {}) } }
-      delete next[cat][field]
-      return next
-    })
-  }
-
-  function getFormError(cat: string, field: string): string | undefined {
-    return formErrors[cat]?.[field]
-  }
-
-  const COLLAPSE_THRESHOLD = 10
+  const [editState, setEditState] = useState<EditState | null>(null)
+  const [editErrors, setEditErrors] = useState<Record<string, string>>({})
+  const [savingEdit, setSavingEdit] = useState(false)
 
   const [confirmDeactivate, setConfirmDeactivate] = useState<{ open: boolean; option: FilterOption | null }>({
     open: false, option: null,
@@ -93,12 +91,10 @@ export default function FilterEditor({ categories }: FilterEditorProps) {
         fetch('/api/admin/filter-options/manage'),
         fetch('/api/admin/filter-options/manage/usage'),
       ])
-
       if (!optionsRes.ok) {
         const body = await optionsRes.json().catch(() => ({}))
         throw new Error(body.error || `Failed to load options (HTTP ${optionsRes.status})`)
       }
-
       const { data: options } = await optionsRes.json()
       const grouped: Record<string, FilterOption[]> = {}
       for (const cat of categories) grouped[cat.value] = []
@@ -107,10 +103,7 @@ export default function FilterEditor({ categories }: FilterEditorProps) {
         grouped[opt.category].push(opt)
       }
       setOptionsByCategory(grouped)
-
-      if (usageRes.ok) {
-        setUsageCounts((await usageRes.json()) ?? {})
-      }
+      if (usageRes.ok) setUsageCounts((await usageRes.json()) ?? {})
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -120,7 +113,7 @@ export default function FilterEditor({ categories }: FilterEditorProps) {
 
   useEffect(() => { fetchData() }, [fetchData])
 
-  // ── Local state helpers ───────────────────────────────────────────────────────
+  // ── Helpers ───────────────────────────────────────────────────────────────────
 
   const updateOption = (id: string, patch: Partial<FilterOption>) => {
     setOptionsByCategory((prev) => {
@@ -142,11 +135,33 @@ export default function FilterEditor({ categories }: FilterEditorProps) {
     })
   }
 
+  function autoValue(label: string): string {
+    return label.toLowerCase().trim().replace(/\s+/g, '_').replace(/[^a-z0-9_.]/g, '').slice(0, 50)
+  }
+
+  function clearFormError(cat: string, field: string) {
+    setFormErrors((prev) => {
+      const next = { ...prev, [cat]: { ...(prev[cat] ?? {}) } }
+      delete next[cat][field]
+      return next
+    })
+  }
+
+  function getFormError(cat: string, field: string): string | undefined {
+    return formErrors[cat]?.[field]
+  }
+
+  // ── Add form state ────────────────────────────────────────────────────────────
+
   const setForm = (cat: string, field: keyof AddForm, val: string, skipAutoValue = false) => {
     setNewForms((prev) => {
       const updated: AddForm = { ...prev[cat], [field]: val }
-      // Auto-generate value from label unless the user has manually edited value
-      if (field === 'label' && !skipAutoValue && cat !== 'price_range') {
+      if (cat === 'region') {
+        // For region tab: value is the ISO code, label always syncs from lookup
+        if (field === 'value') {
+          updated.label = lookupCountry(val) ?? ''
+        }
+      } else if (field === 'label' && !skipAutoValue && cat !== 'price_range') {
         updated.value = autoValue(val)
       }
       return { ...prev, [cat]: updated }
@@ -154,9 +169,9 @@ export default function FilterEditor({ categories }: FilterEditorProps) {
     clearFormError(cat, field)
   }
 
-  // ── Actions ───────────────────────────────────────────────────────────────────
+  // ── Add validation ────────────────────────────────────────────────────────────
 
-  const handleAdd = async (category: string) => {
+  function validateAddForm(category: string): Record<string, string> {
     const form = newForms[category]
     const errs: Record<string, string> = {}
 
@@ -166,38 +181,81 @@ export default function FilterEditor({ categories }: FilterEditorProps) {
       else if (isNaN(n)) errs.maxPrice = 'Max price must be a whole number'
       else if (n <= 0) errs.maxPrice = 'Max price must be greater than $0'
       else if (n > 100000) errs.maxPrice = 'Max price seems too high — please check the value'
-      else {
-        const duplicate = (optionsByCategory[category] ?? []).find((o) => o.value === `under_${n}`)
-        if (duplicate) errs.maxPrice = `"Under $${n}/year" already exists`
-      }
+      else if ((optionsByCategory[category] ?? []).some((o) => o.value === `under_${n}`))
+        errs.maxPrice = `"Under $${n}/year" already exists`
+    } else if (category === 'region') {
+      const code = form.value.trim().toUpperCase()
+      if (!code) errs.value = 'Country/region code is required'
+      else if (!isValidRegionCode(code)) errs.value = `"${code}" is not a recognised country or region code`
+      if (!form.label.trim()) errs.label = 'Country name is required'
+      if ((optionsByCategory[category] ?? []).some(
+        (o) => o.value.toUpperCase() === code
+      )) errs.value = `"${code}" already exists in Regions`
     } else {
-      if (!form?.label.trim()) errs.label = 'Label is required'
+      if (!form.label.trim()) errs.label = 'Label is required'
       else if (form.label.length > 100) errs.label = 'Label must be under 100 characters'
-      if (!form?.value.trim()) errs.value = 'Value is required'
+      if (!form.value.trim()) errs.value = 'Value is required'
       else if (form.value.length > 50) errs.value = 'Value must be under 50 characters'
-      else {
-        const duplicate = (optionsByCategory[category] ?? []).find(
-          (o) => o.value.toLowerCase() === form.value.trim().toLowerCase()
-        )
-        if (duplicate) errs.value = `"${form.value.trim()}" already exists in this category`
-      }
+      else if ((optionsByCategory[category] ?? []).some(
+        (o) => o.value.toLowerCase() === form.value.trim().toLowerCase()
+      )) errs.value = `"${form.value.trim()}" already exists in this category`
       if (form.order && isNaN(parseInt(form.order, 10))) errs.order = 'Display order must be a whole number'
     }
 
+    return errs
+  }
+
+  // ── Edit validation ───────────────────────────────────────────────────────────
+
+  function validateEditForm(state: EditState): Record<string, string> {
+    const errs: Record<string, string> = {}
+    const category = state.category
+    const othersInCat = (optionsByCategory[category] ?? []).filter((o) => o.id !== state.id)
+
+    if (category === 'price_range') {
+      const n = parseInt(state.maxPrice, 10)
+      if (!state.maxPrice) errs.maxPrice = 'Max price is required'
+      else if (isNaN(n)) errs.maxPrice = 'Max price must be a whole number'
+      else if (n <= 0) errs.maxPrice = 'Max price must be greater than $0'
+      else if (n > 100000) errs.maxPrice = 'Max price seems too high — please check the value'
+      else if (othersInCat.some((o) => o.value === `under_${n}`))
+        errs.maxPrice = `"Under $${n}/year" already exists`
+    } else if (category === 'region') {
+      const code = state.value.trim().toUpperCase()
+      if (!code) errs.value = 'Country/region code is required'
+      else if (!isValidRegionCode(code)) errs.value = `"${code}" is not a recognised country or region code`
+      if (!state.label.trim()) errs.label = 'Country name is required'
+      if (othersInCat.some((o) => o.value.toUpperCase() === code))
+        errs.value = `"${code}" already exists in Regions`
+    } else {
+      if (!state.label.trim()) errs.label = 'Label is required'
+      else if (state.label.length > 100) errs.label = 'Label must be under 100 characters'
+      if (!state.value.trim()) errs.value = 'Value is required'
+      else if (state.value.length > 50) errs.value = 'Value must be under 50 characters'
+      else if (othersInCat.some((o) => o.value.toLowerCase() === state.value.trim().toLowerCase()))
+        errs.value = `"${state.value.trim()}" already exists in this category`
+      if (state.order && isNaN(parseInt(state.order, 10))) errs.order = 'Display order must be a whole number'
+    }
+
+    return errs
+  }
+
+  // ── Actions ───────────────────────────────────────────────────────────────────
+
+  const handleAdd = async (category: string) => {
+    const errs = validateAddForm(category)
     if (Object.keys(errs).length > 0) {
       setFormErrors((prev) => ({ ...prev, [category]: errs }))
       return
     }
     setFormErrors((prev) => ({ ...prev, [category]: {} }))
 
+    const form = newForms[category]
     setAdding(category)
     try {
       let label = form.label.trim()
       let value = form.value.trim()
-      const body: Record<string, unknown> = {
-        category,
-        display_order: parseInt(form.order || '0', 10),
-      }
+      const body: Record<string, unknown> = { category, display_order: parseInt(form.order || '0', 10) }
 
       if (category === 'price_range') {
         const n = parseInt(form.maxPrice, 10)
@@ -205,6 +263,9 @@ export default function FilterEditor({ categories }: FilterEditorProps) {
         value = `under_${n}`
         body.metadata = { max: n }
         body.display_order = n
+      } else if (category === 'region') {
+        value = value.toUpperCase()
+        label = lookupCountry(value) ?? label
       }
 
       body.label = label
@@ -228,6 +289,61 @@ export default function FilterEditor({ categories }: FilterEditorProps) {
       toast({ variant: 'destructive', title: 'Error', description: err instanceof Error ? err.message : String(err) })
     } finally {
       setAdding(null)
+    }
+  }
+
+  const openEdit = (opt: FilterOption) => {
+    setEditState({
+      id: opt.id,
+      category: opt.category,
+      label: opt.label,
+      value: opt.value,
+      order: String(opt.display_order),
+      maxPrice: opt.metadata?.max !== undefined ? String(opt.metadata.max) : '',
+    })
+    setEditErrors({})
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editState) return
+    const errs = validateEditForm(editState)
+    if (Object.keys(errs).length > 0) { setEditErrors(errs); return }
+    setEditErrors({})
+    setSavingEdit(true)
+    try {
+      const category = editState.category
+      let label = editState.label.trim()
+      let value = editState.value.trim()
+      const body: Record<string, unknown> = { display_order: parseInt(editState.order || '0', 10) }
+
+      if (category === 'price_range') {
+        const n = parseInt(editState.maxPrice, 10)
+        label = `Under $${n.toLocaleString()}/year`
+        value = `under_${n}`
+        body.metadata = { max: n }
+        body.display_order = n
+      } else if (category === 'region') {
+        value = value.toUpperCase()
+        label = lookupCountry(value) ?? label
+      }
+
+      body.label = label
+      body.value = value
+
+      const res = await fetch(`/api/admin/filter-options/manage/${editState.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Failed to update option')
+      updateOption(editState.id, json)
+      setEditState(null)
+      toast({ title: 'Option updated' })
+    } catch (err: unknown) {
+      toast({ variant: 'destructive', title: 'Error', description: err instanceof Error ? err.message : String(err) })
+    } finally {
+      setSavingEdit(false)
     }
   }
 
@@ -290,8 +406,6 @@ export default function FilterEditor({ categories }: FilterEditorProps) {
   // ── Derived values ────────────────────────────────────────────────────────────
 
   const activeCategory = categories.find((c) => c.value === activeTab)
-  const labelPlaceholder = activeCategory ? `e.g. ${activeCategory.labelExample}` : ''
-  const valuePlaceholder = activeCategory ? `e.g. ${activeCategory.valueExample}` : ''
   const options = optionsByCategory[activeTab] ?? []
   const isExpanded = expandedTabs[activeTab] ?? false
   const isCollapsible = options.length > COLLAPSE_THRESHOLD
@@ -301,6 +415,12 @@ export default function FilterEditor({ categories }: FilterEditorProps) {
   const deleteOption = confirmDelete.option
   const deleteCount = deleteOption ? (usageCounts[deleteOption.value] ?? 0) : 0
   const isPriceRange = activeTab === 'price_range'
+  const isRegion = activeTab === 'region'
+
+  // Live region lookup preview for add form
+  const regionPreview = isRegion && form.value
+    ? lookupCountry(form.value.trim())
+    : undefined
 
   // ── Render ────────────────────────────────────────────────────────────────────
 
@@ -381,20 +501,120 @@ export default function FilterEditor({ categories }: FilterEditorProps) {
                   <th className="text-left px-4 py-2.5 font-semibold text-slate-600">Label</th>
                   <th className="text-left px-4 py-2.5 font-semibold text-slate-600">Value</th>
                   <th className="text-center px-4 py-2.5 font-semibold text-slate-600 w-16">Order</th>
-                  {isPriceRange && (
+                  {isPriceRange ? (
                     <th className="text-center px-4 py-2.5 font-semibold text-slate-600 w-28">Threshold</th>
-                  )}
-                  {!isPriceRange && (
+                  ) : (
                     <th className="text-center px-4 py-2.5 font-semibold text-slate-600 w-28">Usage</th>
                   )}
                   <th className="text-center px-4 py-2.5 font-semibold text-slate-600 w-24">Status</th>
-                  <th className="w-20" />
+                  <th className="w-28" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {visibleOptions.map((opt) => {
+                  const isEditing = editState?.id === opt.id
                   const usedBy = usageCounts[opt.value] ?? 0
                   const threshold = opt.metadata?.max
+
+                  if (isEditing && editState) {
+                    return (
+                      <tr key={opt.id} className="bg-blue-50/40">
+                        <td colSpan={6} className="px-4 py-3">
+                          {/* Inline edit form */}
+                          {editState.category === 'price_range' ? (
+                            <div className="flex flex-wrap items-end gap-3">
+                              <div className="space-y-1">
+                                <Label className="text-xs">Max Price (USD/year) <span className="text-red-500">*</span></Label>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-slate-500 text-sm">Under $</span>
+                                  <Input
+                                    type="number"
+                                    value={editState.maxPrice}
+                                    onChange={(e) => { setEditState((s) => s ? { ...s, maxPrice: e.target.value } : s); setEditErrors((p) => { const n = { ...p }; delete n.maxPrice; return n }) }}
+                                    className={cn('h-8 text-sm w-28', editErrors.maxPrice ? 'border-red-400' : '')}
+                                    min="1" max="100000"
+                                  />
+                                  <span className="text-slate-500 text-sm">/year</span>
+                                </div>
+                                <FieldError error={editErrors.maxPrice} />
+                              </div>
+                              <EditActions onSave={handleSaveEdit} onCancel={() => { setEditState(null); setEditErrors({}) }} saving={savingEdit} />
+                            </div>
+                          ) : editState.category === 'region' ? (
+                            <div className="flex flex-wrap items-end gap-3">
+                              <div className="space-y-1">
+                                <Label className="text-xs">ISO Code <span className="text-red-500">*</span></Label>
+                                <Input
+                                  value={editState.value}
+                                  onChange={(e) => {
+                                    const code = e.target.value.toUpperCase()
+                                    setEditState((s) => s ? { ...s, value: code, label: lookupCountry(code) ?? '' } : s)
+                                    setEditErrors((p) => { const n = { ...p }; delete n.value; return n })
+                                  }}
+                                  placeholder="e.g. JP"
+                                  className={cn('h-8 text-sm font-mono w-24', editErrors.value ? 'border-red-400' : '')}
+                                />
+                                <FieldError error={editErrors.value} />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs">Country Name <span className="text-red-500">*</span></Label>
+                                <Input
+                                  value={editState.label}
+                                  onChange={(e) => { setEditState((s) => s ? { ...s, label: e.target.value } : s); setEditErrors((p) => { const n = { ...p }; delete n.label; return n }) }}
+                                  className={cn('h-8 text-sm w-48', editErrors.label ? 'border-red-400' : '')}
+                                />
+                                <FieldError error={editErrors.label} />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs">Order</Label>
+                                <Input
+                                  type="number"
+                                  value={editState.order}
+                                  onChange={(e) => setEditState((s) => s ? { ...s, order: e.target.value } : s)}
+                                  className="h-8 text-sm w-20"
+                                  min="0"
+                                />
+                              </div>
+                              <EditActions onSave={handleSaveEdit} onCancel={() => { setEditState(null); setEditErrors({}) }} saving={savingEdit} />
+                            </div>
+                          ) : (
+                            <div className="flex flex-wrap items-end gap-3">
+                              <div className="space-y-1">
+                                <Label className="text-xs">Label <span className="text-red-500">*</span></Label>
+                                <Input
+                                  value={editState.label}
+                                  onChange={(e) => { setEditState((s) => s ? { ...s, label: e.target.value } : s); setEditErrors((p) => { const n = { ...p }; delete n.label; return n }) }}
+                                  className={cn('h-8 text-sm w-48', editErrors.label ? 'border-red-400' : '')}
+                                />
+                                <FieldError error={editErrors.label} />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs">Value <span className="text-red-500">*</span></Label>
+                                <Input
+                                  value={editState.value}
+                                  onChange={(e) => { setEditState((s) => s ? { ...s, value: e.target.value } : s); setEditErrors((p) => { const n = { ...p }; delete n.value; return n }) }}
+                                  className={cn('h-8 text-sm font-mono w-40', editErrors.value ? 'border-red-400' : '')}
+                                />
+                                <FieldError error={editErrors.value} />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs">Order</Label>
+                                <Input
+                                  type="number"
+                                  value={editState.order}
+                                  onChange={(e) => setEditState((s) => s ? { ...s, order: e.target.value } : s)}
+                                  className="h-8 text-sm w-20"
+                                  min="0"
+                                />
+                              </div>
+                              <EditActions onSave={handleSaveEdit} onCancel={() => { setEditState(null); setEditErrors({}) }} saving={savingEdit} />
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  }
+
                   return (
                     <tr key={opt.id} className={cn('transition-colors', !opt.is_active && 'bg-slate-50')}>
                       <td className={cn('px-4 py-3 font-medium', opt.is_active ? 'text-slate-800' : 'text-slate-400')}>
@@ -436,6 +656,15 @@ export default function FilterEditor({ categories }: FilterEditorProps) {
                       </td>
                       <td className="px-2 py-3">
                         <div className="flex items-center justify-end gap-1">
+                          <AdminTooltip label="Edit">
+                            <button
+                              type="button"
+                              onClick={() => openEdit(opt)}
+                              className="p-1.5 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </button>
+                          </AdminTooltip>
                           <AdminTooltip label={opt.is_active ? 'Deactivate (hide from filters)' : 'Reactivate'}>
                             <button
                               type="button"
@@ -464,9 +693,10 @@ export default function FilterEditor({ categories }: FilterEditorProps) {
                     </tr>
                   )
                 })}
+
                 {isCollapsible && (
                   <tr>
-                    <td colSpan={isPriceRange ? 6 : 6} className="px-4 py-2.5 text-center">
+                    <td colSpan={6} className="px-4 py-2.5 text-center">
                       <button
                         type="button"
                         onClick={() => setExpandedTabs((prev) => ({ ...prev, [activeTab]: !isExpanded }))}
@@ -489,7 +719,6 @@ export default function FilterEditor({ categories }: FilterEditorProps) {
           </p>
 
           {isPriceRange ? (
-            /* Price range: number-only input with live label preview */
             <div className="space-y-3">
               <div className="space-y-1">
                 <Label className="text-xs">Max Price (USD/year) <span className="text-red-500">*</span></Label>
@@ -501,33 +730,71 @@ export default function FilterEditor({ categories }: FilterEditorProps) {
                     onChange={(e) => setForm(activeTab, 'maxPrice', e.target.value)}
                     placeholder="e.g. 50"
                     className={cn('h-9 text-sm w-32', getFormError(activeTab, 'maxPrice') ? 'border-red-400 focus:ring-red-400' : '')}
-                    min="1"
-                    max="100000"
-                    step="1"
+                    min="1" max="100000" step="1"
                   />
                   <span className="text-slate-500 text-sm flex-shrink-0">/year</span>
                 </div>
                 <FieldError error={getFormError(activeTab, 'maxPrice')} />
                 {form.maxPrice && !isNaN(parseInt(form.maxPrice, 10)) && parseInt(form.maxPrice, 10) > 0 && !getFormError(activeTab, 'maxPrice') && (
                   <p className="text-xs text-slate-500 mt-1">
-                    Will be added as:{' '}
-                    <span className="font-medium text-slate-700">
-                      "Under ${parseInt(form.maxPrice, 10).toLocaleString()}/year"
-                    </span>
+                    Will be added as: <span className="font-medium text-slate-700">"Under ${parseInt(form.maxPrice, 10).toLocaleString()}/year"</span>
                   </p>
                 )}
                 <p className="text-xs text-slate-400">Tools with a starting price at or below this amount will match this filter.</p>
               </div>
             </div>
+          ) : isRegion ? (
+            /* Region tab: ISO code first, country name auto-fills */
+            <div className="grid sm:grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">ISO Country Code <span className="text-red-500">*</span></Label>
+                <Input
+                  value={form.value}
+                  onChange={(e) => setForm(activeTab, 'value', e.target.value.toUpperCase(), true)}
+                  placeholder="e.g. JP"
+                  className={cn('h-9 text-sm font-mono uppercase', getFormError(activeTab, 'value') ? 'border-red-400 focus:ring-red-400' : '')}
+                  maxLength={6}
+                />
+                <FieldError error={getFormError(activeTab, 'value')} />
+                {regionPreview && !getFormError(activeTab, 'value') && (
+                  <p className="text-xs text-emerald-600 font-medium">✓ {regionPreview}</p>
+                )}
+                {form.value && !regionPreview && !getFormError(activeTab, 'value') && (
+                  <p className="text-xs text-slate-400">Enter a valid ISO 3166-1 alpha-2 code (e.g. US, GB, JP) or broad region (e.g. EU, APAC)</p>
+                )}
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Country / Region Name <span className="text-red-500">*</span></Label>
+                <Input
+                  value={form.label}
+                  onChange={(e) => { setNewForms((p) => ({ ...p, [activeTab]: { ...p[activeTab], label: e.target.value } })); clearFormError(activeTab, 'label') }}
+                  placeholder="Auto-filled from code"
+                  className={cn('h-9 text-sm', getFormError(activeTab, 'label') ? 'border-red-400 focus:ring-red-400' : '')}
+                />
+                <FieldError error={getFormError(activeTab, 'label')} />
+                {!getFormError(activeTab, 'label') && <p className="text-xs text-slate-400">Auto-filled from the ISO code lookup</p>}
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Display Order</Label>
+                <Input
+                  type="number"
+                  value={form.order}
+                  onChange={(e) => setForm(activeTab, 'order', e.target.value)}
+                  className="h-9 text-sm"
+                  min="0"
+                />
+                <p className="text-xs text-slate-400">Lower = shown first</p>
+              </div>
+            </div>
           ) : (
-            /* All other categories: label + value + order */
-            <div className={cn('grid gap-3', 'sm:grid-cols-3')}>
+            /* All other categories */
+            <div className="grid sm:grid-cols-3 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs">Label <span className="text-red-500">*</span></Label>
                 <Input
                   value={form.label}
                   onChange={(e) => setForm(activeTab, 'label', e.target.value)}
-                  placeholder={labelPlaceholder}
+                  placeholder={activeCategory ? `e.g. ${activeCategory.labelExample}` : ''}
                   className={cn('h-9 text-sm', getFormError(activeTab, 'label') ? 'border-red-400 focus:ring-red-400' : '')}
                 />
                 <FieldError error={getFormError(activeTab, 'label')} />
@@ -538,7 +805,7 @@ export default function FilterEditor({ categories }: FilterEditorProps) {
                 <Input
                   value={form.value}
                   onChange={(e) => setForm(activeTab, 'value', e.target.value, true)}
-                  placeholder={valuePlaceholder}
+                  placeholder={activeCategory ? `e.g. ${activeCategory.valueExample}` : ''}
                   className={cn('h-9 text-sm font-mono', getFormError(activeTab, 'value') ? 'border-red-400 focus:ring-red-400' : '')}
                 />
                 <FieldError error={getFormError(activeTab, 'value')} />
@@ -558,6 +825,7 @@ export default function FilterEditor({ categories }: FilterEditorProps) {
               </div>
             </div>
           )}
+
           <div className="mt-3 flex justify-end">
             <Button
               type="button"
@@ -596,6 +864,42 @@ export default function FilterEditor({ categories }: FilterEditorProps) {
         onConfirm={handleConfirmDelete}
         loading={deleting}
       />
+    </div>
+  )
+}
+
+function EditActions({
+  onSave,
+  onCancel,
+  saving,
+}: {
+  onSave: () => void
+  onCancel: () => void
+  saving: boolean
+}) {
+  return (
+    <div className="flex items-center gap-2 pb-0.5">
+      <Button
+        type="button"
+        size="sm"
+        onClick={onSave}
+        disabled={saving}
+        className="bg-blue-600 hover:bg-blue-700 text-white h-8 px-3 gap-1.5"
+      >
+        {saving ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+        {saving ? 'Saving…' : 'Save'}
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={onCancel}
+        disabled={saving}
+        className="h-8 px-3 gap-1.5"
+      >
+        <X className="h-3.5 w-3.5" />
+        Cancel
+      </Button>
     </div>
   )
 }

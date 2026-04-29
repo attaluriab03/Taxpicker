@@ -549,3 +549,69 @@ Tiers are display-only — they render as cards on the public tool detail page. 
 - **Price**: enter a number (`49`) for paid, `0` for Free, or text (`Custom`) for non-numeric
 - **Popular**: highlights one tier with a blue "Popular" badge — only one per tool
 - `price_from` is set to the minimum numeric price > 0 across all tiers on save; if all tiers are free (`0`), `price_from` is set to `0`
+
+---
+
+## 14. Form Validation
+
+### Overview
+
+All admin forms have client-side validation powered by **Zod v4**. Validation runs on save (or publish) and shows inline field errors. It does **not** rely on browser-native `required` attributes — all checks are explicit.
+
+---
+
+### Shared utilities
+
+| File | Purpose |
+|---|---|
+| `lib/validation.ts` | Reusable Zod field validators (`requiredText`, `httpsUrl`, `positiveInteger`, `priceRangeMax`, `pricingTypeEnum`, etc.) |
+| `lib/countries.ts` | Static ISO 3166-1 alpha-2 lookup table (`COUNTRY_LOOKUP`, `lookupCountry`, `isValidRegionCode`) |
+| `hooks/useFormValidation.ts` | Generic React hook: wraps a Zod schema, returns `{ validate, errors, getError, clearError, hasErrors }` |
+| `components/admin/FieldError.tsx` | Inline red error message with an alert icon — renders `null` when no error |
+| `components/admin/ValidationSummary.tsx` | Red summary box listing all errors; auto-scrolls into view on error count change |
+
+---
+
+### Per-form notes
+
+**ToolForm** (`components/admin/ToolForm.tsx`)
+- Validates on every save attempt (draft and publish).
+- Required: `name` (max 100), `affiliate_url` (https://).
+- Optional https: `website_url`, `logo_url`.
+- Tier prices: numbers ≥ 0 or one of the allowed text values — `"Free"`, `"Custom"`, `"Contact us"`, `"TBD"`.
+- FAQ entries: question max 300 chars, answer max 1000 chars.
+- A `ValidationSummary` appears above the form; the page scrolls to it on failure.
+
+**ArticleForm** (`components/admin/ArticleForm.tsx`)
+- `title` required (max 200), `author` optional (max 100).
+- `meta_description` optional (max 160); shows char counter (amber at 140).
+- `og_image_url` checked on blur for valid `https://` format.
+- `content` is required when publishing (not for drafts).
+- `meta_description` is required when publishing.
+
+**FaqItemsManager** (`components/admin/FaqItemsManager.tsx`)
+- Question: required, max 300 chars. Soft tip in amber if it doesn't end with `?`.
+- Answer: required, max 2000 chars.
+- Errors are separate for the add form and the inline edit form.
+
+**ContentEditor** (`components/admin/ContentEditor.tsx`)
+- Character limits by type: `text` → 500, `textarea` → 2000, `richtext` → 50 000.
+- Counter turns amber near the limit (>90%) and red when over.
+- Over-limit: red border on the input.
+
+**FilterEditor** (`app/(admin)/admin/(panel)/filters/FilterEditor.tsx`)
+- `price_range`: max price required, must be a positive integer ≤ 100 000; duplicate threshold blocked.
+- `region`: value must be a valid ISO 3166-1 alpha-2 code or broad region (validated against `lib/countries.ts`); label auto-fills from lookup; duplicate code blocked.
+- All other categories: label required (max 100), value required (max 50), duplicate value blocked within the same category.
+- Inline edit forms apply the same validation as add forms.
+
+---
+
+### Zod v4 compatibility notes
+
+This project uses Zod v4 (`^4.3.6`). Key differences from v3:
+
+- `z.number('message')` — pass the error message as a plain string, not `{ invalid_type_error: '...' }`.
+- `ZodError.issues` — the array of issues is `.issues`, not `.errors`.
+- `z.enum(['a', 'b'])` — no second argument for a custom error map; use `.refine()` if needed.
+- These patterns are already applied consistently in `lib/validation.ts` and `hooks/useFormValidation.ts`.
