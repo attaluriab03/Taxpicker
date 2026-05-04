@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { Tool, Article } from './supabase'
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://taxpicker.io'
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
 const siteName = 'Taxpicker'
 const siteDescription =
   'Find, compare, and choose the best crypto tax software for your needs. Unbiased reviews, feature comparisons, and verified pricing.'

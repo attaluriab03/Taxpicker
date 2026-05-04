@@ -81,7 +81,7 @@ export async function generateStaticParams() {
 }
 
 function BreadcrumbJsonLd({ tool }: { tool: Tool }) {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://taxpicker.io'
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
   const schema = {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
@@ -115,7 +115,7 @@ function BreadcrumbJsonLd({ tool }: { tool: Tool }) {
 }
 
 function ToolJsonLd({ tool }: { tool: Tool }) {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://taxpicker.io'
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
   const schema = {
     '@context': 'https://schema.org',
     '@type': 'SoftwareApplication',

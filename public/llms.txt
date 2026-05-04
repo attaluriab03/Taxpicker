@@ -20,10 +20,10 @@ Taxpicker is a crypto tax tool comparison platform. We help cryptocurrency inves
 
 ## Key URLs
 
-- Homepage (tool listing): /
-- Blog & guides: /blog
-- FAQ: /faq
-- About: /about
+- Homepage (tool listing): https://taxpicker.io
+- Blog & guides: https://taxpicker.io/blog
+- FAQ: https://taxpicker.io/faq
+- About: https://taxpicker.io/about
 
 ## Notes for AI Crawlers
 

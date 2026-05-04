@@ -615,3 +615,124 @@ This project uses Zod v4 (`^4.3.6`). Key differences from v3:
 - `ZodError.issues` — the array of issues is `.issues`, not `.errors`.
 - `z.enum(['a', 'b'])` — no second argument for a custom error map; use `.refine()` if needed.
 - These patterns are already applied consistently in `lib/validation.ts` and `hooks/useFormValidation.ts`.
+
+---
+
+## 15. Domain and Subdomain Setup
+
+### Overview
+
+The platform uses two URLs pointing to the same Vercel deployment:
+
+| URL | Purpose |
+|---|---|
+| `https://taxpicker.io` | Public-facing site |
+| `https://admin.taxpicker.io` | Admin panel |
+
+Next.js rewrites in `next.config.mjs` route admin subdomain requests internally to `/admin/*` — no separate deployment needed. Domain names are defined only in environment variables; no domain names are hardcoded in the codebase.
+
+---
+
+### Environment Variables
+
+| Variable | Production value | Local dev value |
+|---|---|---|
+| `NEXT_PUBLIC_SITE_URL` | `https://taxpicker.io` | `http://localhost:3000` |
+| `NEXT_PUBLIC_ADMIN_URL` | `https://admin.taxpicker.io` | `http://localhost:3000/admin` |
+| `NEXT_PUBLIC_DOMAIN` | `taxpicker.io` | `localhost:3000` |
+
+---
+
+### Step 1 — Add Domains in Vercel
+
+1. Go to [vercel.com](https://vercel.com) → your project
+2. **Settings → Domains**
+3. Click **Add Domain**
+4. Add `taxpicker.io` → click Add
+5. Add `admin.taxpicker.io` → click Add
+6. Vercel will show the DNS records required for each domain
+
+---
+
+### Step 2 — Configure DNS in GoDaddy
+
+1. Log in to GoDaddy → **My Products → DNS** (or Domains → Manage → DNS)
+2. Add the following records:
+
+**For the main domain (`taxpicker.io`):**
+
+| Type | Name | Value | TTL |
+|---|---|---|---|
+| A | `@` | `76.76.21.21` | 600 |
+| CNAME | `www` | `cname.vercel-dns.com` | 600 |
+
+**For the admin subdomain:**
+
+| Type | Name | Value | TTL |
+|---|---|---|---|
+| CNAME | `admin` | `cname.vercel-dns.com` | 600 |
+
+3. Click **Save**
+4. DNS propagation takes 5–30 minutes (up to 48 hours in rare cases)
+
+---
+
+### Step 3 — Update Environment Variables in Vercel
+
+1. Vercel → Project → **Settings → Environment Variables**
+2. Add or update all three site URL variables with their production values (see table above)
+3. Click **Save**
+4. Go to **Deployments** → click the three dots on the latest deployment → **Redeploy**
+
+---
+
+### Step 4 — Update Supabase Auth URLs
+
+1. **Supabase Dashboard → Authentication → URL Configuration**
+2. Set **Site URL** to: `https://taxpicker.io`
+3. Under **Redirect URLs**, add all of the following:
+
+```
+https://taxpicker.io
+https://taxpicker.io/admin
+https://admin.taxpicker.io
+https://admin.taxpicker.io/login
+http://localhost:3000
+http://localhost:3000/admin
+```
+
+4. Click **Save**
+
+> These must be added **before going live** or auth redirects will fail in production.
+
+---
+
+### Step 5 — Verify Everything Works
+
+| Check | Expected result |
+|---|---|
+| Visit `https://taxpicker.io` | Public site loads |
+| Visit `https://admin.taxpicker.io` | Redirects to `https://admin.taxpicker.io/login` |
+| Log in at `https://admin.taxpicker.io/login` | Redirects to `https://admin.taxpicker.io` (admin dashboard) |
+| Visit `https://taxpicker.io/admin` | Redirects to `/admin/login` (fallback path still works) |
+| Padlock icon in browser | SSL active (Vercel provisions automatically — may take up to 10 minutes) |
+
+---
+
+### Troubleshooting
+
+**DNS not propagating:**
+- Wait up to 48 hours; check records are exactly correct
+- Use [dnschecker.org](https://dnschecker.org) to verify propagation globally
+
+**SSL certificate not working:**
+- Wait 10 minutes after the domain connects in Vercel
+- Confirm the domain shows as **Verified** in Vercel → Settings → Domains
+
+**Admin subdomain shows the homepage instead of admin:**
+- Confirm the `admin` CNAME record points to `cname.vercel-dns.com`
+- Redeploy the Vercel project after adding the environment variables
+
+**Auth redirect not working after login:**
+- Confirm all six Supabase redirect URLs are saved
+- Confirm `NEXT_PUBLIC_SITE_URL` is set correctly in Vercel environment variables

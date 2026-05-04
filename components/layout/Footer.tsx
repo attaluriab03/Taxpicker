@@ -12,7 +12,6 @@ const productLinks = [
 const companyLinks = [
   { href: '/about', label: 'About' },
   { href: '/faq', label: 'Contact' },
-  // { href: '/admin', label: 'Admin' }, remove Admin link from public-facing website, create subdomain
 ]
 
 const complianceLinks = [
@@ -50,9 +49,9 @@ export default function Footer() {
               <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" aria-label="Twitter" className="text-slate-400 hover:text-white transition-colors">
                 <Twitter className="h-4 w-4" />
               </a>
-              <a href="https://github.com" target="_blank" rel="noopener noreferrer" aria-label="GitHub" className="text-slate-400 hover:text-white transition-colors">
+              {/* <a href="https://github.com" target="_blank" rel="noopener noreferrer" aria-label="GitHub" className="text-slate-400 hover:text-white transition-colors">
                 <Github className="h-4 w-4" />
-              </a>
+              </a> */}
               <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="text-slate-400 hover:text-white transition-colors">
                 <Linkedin className="h-4 w-4" />
               </a>
@@ -114,7 +113,8 @@ export default function Footer() {
           <p className="text-xs text-slate-500">
             © {new Date().getFullYear()} Taxpicker. All rights reserved.
           </p>
-          <div className="flex gap-4 flex-wrap justify-center">
+          {/* Second set of policies - removed */}
+          {/* <div className="flex gap-4 flex-wrap justify-center">
             {complianceLinks.map((link) => (
               <Link key={link.href} href={link.href} className="text-xs text-slate-500 hover:text-slate-300 transition-colors">
                 {link.label}
@@ -126,7 +126,7 @@ export default function Footer() {
             >
               Cookie Settings
             </button>
-          </div>
+          </div> */}
         </div>
       </div>
     </footer>

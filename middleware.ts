@@ -19,9 +19,7 @@ export async function middleware(request: NextRequest) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)
           )
-          supabaseResponse = NextResponse.next({
-            request,
-          })
+          supabaseResponse = NextResponse.next({ request })
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
           )
@@ -30,33 +28,52 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // IMPORTANT: use getUser() not getSession() — getUser() validates the token
-  // server-side on every request and cannot be spoofed via a forged cookie
+  // IMPORTANT: use getUser() not getSession() — validates the token server-side
+  // on every request and cannot be spoofed via a forged cookie
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // If no user and accessing any /admin route except /admin/login, redirect to login
-  if (
-    !user &&
-    request.nextUrl.pathname.startsWith('/admin') &&
-    !request.nextUrl.pathname.startsWith('/admin/login')
-  ) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/admin/login'
-    return NextResponse.redirect(url)
+  const { pathname } = request.nextUrl
+  const host = request.headers.get('host') || ''
+
+  // Detect if request is coming from the admin subdomain.
+  // Matches admin.anydomain.com and admin.*.vercel.app.
+  // Does NOT match localhost (local dev uses /admin path directly).
+  const isAdminSubdomain = host.startsWith('admin.') && !host.startsWith('localhost')
+
+  const isAdminPath = pathname.startsWith('/admin')
+
+  // Works for both /admin/login (main domain) and /login (admin subdomain
+  // after the rewrite maps admin.yourdomain.com/login → /login internally)
+  const isLoginPath =
+    pathname === '/admin/login' ||
+    pathname === '/login' ||
+    pathname === '/admin/login/'
+
+  // Build the correct login URL based on which domain the request is from
+  const loginUrl = isAdminSubdomain
+    ? `https://${host}/login`
+    : new URL('/admin/login', request.url).toString()
+
+  // Build the correct admin URL based on which domain the request is from
+  const adminUrl = isAdminSubdomain
+    ? `https://${host}`
+    : new URL('/admin', request.url).toString()
+
+  // No user on an admin route or admin subdomain → redirect to login
+  if (!user && (isAdminPath || isAdminSubdomain) && !isLoginPath) {
+    return NextResponse.redirect(loginUrl)
   }
 
-  // If user is already logged in and trying to access /admin/login, redirect to dashboard
-  if (user && request.nextUrl.pathname.startsWith('/admin/login')) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/admin'
-    return NextResponse.redirect(url)
+  // User already logged in on login page → redirect to admin dashboard
+  if (user && isLoginPath) {
+    return NextResponse.redirect(adminUrl)
   }
 
   return supabaseResponse
 }
 
 export const config = {
-  matcher: ['/admin/:path*'],
+  matcher: ['/admin/:path*', '/login'],
 }

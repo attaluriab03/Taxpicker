@@ -53,7 +53,7 @@ export async function generateStaticParams() {
 }
 
 function BreadcrumbJsonLd({ article }: { article: Article }) {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://taxpicker.io'
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
   const schema = {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
@@ -87,7 +87,7 @@ function BreadcrumbJsonLd({ article }: { article: Article }) {
 }
 
 function ArticleJsonLd({ article }: { article: Article }) {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://taxpicker.io'
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
   const schema = {
     '@context': 'https://schema.org',
     '@type': 'Article',
