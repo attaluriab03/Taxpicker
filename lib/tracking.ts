@@ -3,12 +3,7 @@
 import { createServiceClient } from './supabase'
 import { headers } from 'next/headers'
 
-export async function trackAffiliateClick(
-  toolId: string,
-  gdprConsent: boolean
-) {
-  if (!gdprConsent) return
-
+export async function trackAffiliateClick(toolId: string) {
   try {
     const supabase = createServiceClient()
     const headersList = await headers()
@@ -23,10 +18,9 @@ export async function trackAffiliateClick(
       user_agent: userAgent,
       referrer: referrer,
       ip: ip,
-      gdpr_consent: gdprConsent,
+      gdpr_consent: true,
     })
   } catch (err) {
-    // Fail silently — tracking should never break the user experience
     console.error('Failed to track affiliate click:', err)
   }
 }
