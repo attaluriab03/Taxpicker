@@ -22,6 +22,7 @@ import AutoFillButton from './AutoFillButton'
 import ConfirmDialog from './ConfirmDialog'
 import FieldError from './FieldError'
 import { toast } from '@/lib/use-toast'
+import { isValidPrice } from '@/lib/validation'
 import type { Tool } from '@/lib/supabase'
 import { Loader2, Save, Send } from 'lucide-react'
 
@@ -175,12 +176,8 @@ export default function ToolForm({ initialData, toolId }: ToolFormProps) {
     if (form.pricing_details && form.pricing_details.length > 200) errs.pricing_details = 'Pricing notes must be under 200 characters'
     form.pricing_tiers.forEach((tier, i) => {
       if (tier.name && tier.name.length > 50) errs[`tier_name_${i}`] = `Tier ${i + 1} name must be under 50 characters`
-      if (tier.price) {
-        const allowed = ['', 'Free', 'Custom', 'Contact us', 'TBD']
-        if (!allowed.includes(tier.price)) {
-          const num = parseFloat(tier.price)
-          if (isNaN(num) || num < 0) errs[`tier_price_${i}`] = `Tier ${i + 1} price must be a positive number, 0, "Free", or "Custom"`
-        }
+      if (tier.price && !isValidPrice(tier.price)) {
+        errs[`tier_price_${i}`] = 'Enter a number (e.g. 49), "Free", or "Custom". No letters, symbols, or currency signs allowed.'
       }
     })
     form.faqs.forEach((faq, i) => {
@@ -492,8 +489,7 @@ export default function ToolForm({ initialData, toolId }: ToolFormProps) {
       <section className="bg-white rounded-xl border border-slate-200 p-6">
         <h2 className="text-base font-semibold text-slate-900 mb-2">Pricing Plans</h2>
         <p className="text-sm text-slate-500 mb-5">
-          Add any number of pricing tiers. Enter a number for USD/year prices, or text like "Custom" for
-          enterprise tiers. Mark one tier as Popular to highlight it on the detail page.
+          Add the pricing tiers for this tool as they appear on the tool's official website. Each tier will be shown as a pricing card on the tool detail page.
         </p>
 
         <div className="space-y-4">
@@ -576,17 +572,49 @@ export default function ToolForm({ initialData, toolId }: ToolFormProps) {
                     placeholder="e.g. Free, Starter, Pro, Enterprise"
                     className={fieldErrors[`tier_name_${index}`] ? 'border-red-400 focus:ring-red-400' : ''}
                   />
+                  <p className="text-xs text-slate-400 mt-1">
+                    The plan name shown on the pricing card e.g. Starter, Pro, Premium, Enterprise
+                  </p>
                   <FieldError error={fieldErrors[`tier_name_${index}`]} />
                 </div>
                 <div className="space-y-1">
-                  <Label>Price</Label>
+                  <Label>
+                    Price <span className="text-red-500 ml-0.5">*</span>
+                  </Label>
                   <Input
                     value={tier.price}
-                    onChange={(e) => { updateTier(index, 'price', e.target.value); setFieldErrors((p) => { const n = { ...p }; delete n[`tier_price_${index}`]; return n }) }}
-                    placeholder="49 or Custom"
+                    onChange={(e) => {
+                      const val = e.target.value
+                      updateTier(index, 'price', val)
+                      if (val && !isValidPrice(val)) {
+                        setFieldErrors((p) => ({ ...p, [`tier_price_${index}`]: 'Enter a number (e.g. 49), "Free", or "Custom" only' }))
+                      } else {
+                        setFieldErrors((p) => { const n = { ...p }; delete n[`tier_price_${index}`]; return n })
+                      }
+                    }}
+                    onBlur={(e) => {
+                      let val = e.target.value.trim()
+                      if (val === '0') val = 'Free'
+                      if (val.toLowerCase() === 'free') val = 'Free'
+                      if (val.toLowerCase() === 'custom') val = 'Custom'
+                      const num = parseFloat(val)
+                      if (!isNaN(num) && val.includes('.')) val = String(parseFloat(val))
+                      updateTier(index, 'price', val)
+                      if (val && !isValidPrice(val)) {
+                        setFieldErrors((p) => ({ ...p, [`tier_price_${index}`]: 'Enter a number (e.g. 49), "Free", or "Custom" only' }))
+                      } else {
+                        setFieldErrors((p) => { const n = { ...p }; delete n[`tier_price_${index}`]; return n })
+                      }
+                    }}
+                    placeholder="e.g. 49"
                     className={fieldErrors[`tier_price_${index}`] ? 'border-red-400 focus:ring-red-400' : ''}
                   />
-                  <p className="text-xs text-slate-400">Number = USD/yr · Text = displayed as-is</p>
+                  <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                    Enter a number only — it will display as "$[number] USD/yr" on the public site. Use <span className="font-medium text-slate-600">Free</span> for free tiers, or <span className="font-medium text-slate-600">Custom</span> for enterprise pricing where the cost varies. Do not include $, USD, /yr, letters, or any other characters — just the number.
+                  </p>
+                  <p className="text-xs text-slate-300 mt-1">
+                    Examples: 49 → "$49 USD/yr" · 0 → "Free" · Free → "Free" · Custom → "Custom"
+                  </p>
                   <FieldError error={fieldErrors[`tier_price_${index}`]} />
                 </div>
               </div>

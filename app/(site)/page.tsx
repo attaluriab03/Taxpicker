@@ -253,9 +253,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       {/* Tool listing */}
       <section className="bg-slate-50 py-14 px-4">
         <div className="mx-auto max-w-7xl">
-          {/* Filter + column header panel */}
-          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm mb-3">
-            {/* "Refine Results" heading */}
+          {/* Filter section — standalone card */}
+          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm mb-4">
             <div className="px-6 pt-5 pb-1">
               <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">{getContent(content, 'comparison_table.section_title', 'Refine Results')}</p>
               <ToolFilters
@@ -274,15 +273,6 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 featureOptions={featureOptions}
               />
             </div>
-
-            {/* Column headers — visually connected to the cards below */}
-            <div className="hidden lg:grid grid-cols-[1fr_140px_140px_200px_210px] gap-4 px-6 py-3 text-sm font-bold text-slate-600 uppercase tracking-wide border-t border-slate-100 bg-slate-50 rounded-b-2xl">
-              <span>Platform</span>
-              <span className="text-center">Rating</span>
-              <span className="text-center">Starting Price</span>
-              <span>Best For</span>
-              <span className="text-right">Actions</span>
-            </div>
           </div>
 
           {tools.length === 0 ? (
@@ -291,11 +281,21 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               <p className="text-sm mt-1">Try adjusting your filters.</p>
             </div>
           ) : (
-            <div className="flex flex-col gap-3">
-              {initialTools.map((tool, i) => (
-                <ToolCard key={tool.id} tool={tool} rank={i + 1} />
-              ))}
-              <ToolExpandButton extraTools={extraTools} startRank={INITIAL_COUNT + 1} />
+            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+              {/* Column headers — first row of the comparison table */}
+              <div className="hidden lg:grid grid-cols-[1fr_140px_140px_200px_210px] gap-4 px-6 py-3 text-sm font-bold text-slate-600 uppercase tracking-wide bg-slate-50 border-b border-slate-100 rounded-t-2xl">
+                <span>Platform</span>
+                <span className="text-center">Rating</span>
+                <span className="text-center">Starting Price</span>
+                <span>Best For</span>
+                <span className="text-right">Actions</span>
+              </div>
+              <div className="flex flex-col gap-3 p-3">
+                {initialTools.map((tool, i) => (
+                  <ToolCard key={tool.id} tool={tool} rank={i + 1} />
+                ))}
+                <ToolExpandButton extraTools={extraTools} startRank={INITIAL_COUNT + 1} />
+              </div>
             </div>
           )}
         </div>
@@ -334,7 +334,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             <h2 className="text-3xl font-bold text-slate-900 mb-3">{getContent(content, 'feature_matrix.section_title', 'Feature Comparison Matrix')}</h2>
             <p className="text-lg text-slate-500">{getContent(content, 'feature_matrix.section_description', 'Compare features across all platforms')}</p>
           </div>
-          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden p-6">
+          <div className="bg-white rounded-xl border border-slate-200 p-6">
             <FeatureMatrix
               tools={allTools}
               maxInitial={6}

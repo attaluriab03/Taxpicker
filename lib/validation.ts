@@ -48,6 +48,17 @@ export const priceRangeMax = z
 
 export const pricingTypeEnum = z.enum(['free', 'freemium', 'paid'])
 
+export const isValidPrice = (val: string): boolean => {
+  const trimmed = val.trim()
+  if (trimmed === '') return true
+  if (trimmed.toLowerCase() === 'free') return true
+  if (trimmed.toLowerCase() === 'custom') return true
+  const strictNumericRegex = /^\d+(\.\d+)?$/
+  if (!strictNumericRegex.test(trimmed)) return false
+  const num = parseFloat(trimmed)
+  return !isNaN(num) && num >= 0 && isFinite(num)
+}
+
 export const ratingValidator = z
   .number()
   .min(0, 'Rating cannot be negative')

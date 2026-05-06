@@ -62,6 +62,7 @@ export default function FeatureMatrix({
   const [selectedRegions, setSelectedRegions] = useState<string[]>([])
   const scrollRef = useRef<HTMLDivElement>(null)
   const [showScrollHint, setShowScrollHint] = useState(false)
+  const [headerOffset, setHeaderOffset] = useState(0)
 
   const toggleRegion = (region: string) => {
     setSelectedRegions((prev) =>
@@ -86,11 +87,16 @@ export default function FeatureMatrix({
   useEffect(() => {
     const el = scrollRef.current
     if (!el) return
+
     setShowScrollHint(el.scrollWidth > el.clientWidth)
-    const handler = () =>
+
+    const onScroll = () => {
+      setHeaderOffset(el.scrollLeft)
       setShowScrollHint(el.scrollLeft < el.scrollWidth - el.clientWidth - 10)
-    el.addEventListener('scroll', handler)
-    return () => el.removeEventListener('scroll', handler)
+    }
+
+    el.addEventListener('scroll', onScroll)
+    return () => el.removeEventListener('scroll', onScroll)
   }, [displayedTools])
 
   return (
@@ -139,114 +145,128 @@ export default function FeatureMatrix({
         </div>
       )}
 
-      {/* ── Scrollable matrix ── */}
+      {/* ── Matrix ── */}
       <div className="relative">
         {showScrollHint && (
           <div className="absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l from-white to-transparent z-10 pointer-events-none rounded-r-xl" />
         )}
-        <div
-          ref={scrollRef}
-          className="overflow-x-auto"
-          style={{ WebkitOverflowScrolling: 'touch' }}
-        >
-          {displayedTools.length === 0 ? (
-            <p className="py-12 text-center text-sm text-slate-400">
-              No tools available for the selected regions.
-            </p>
-          ) : featureRows.length === 0 ? (
-            <p className="py-12 text-center text-sm text-slate-400">
-              Loading features…
-            </p>
-          ) : (
-            <table
-              className="w-full border-collapse"
-              style={{ minWidth: `${220 + displayedTools.length * 150}px` }}
+
+        {displayedTools.length === 0 ? (
+          <p className="py-12 text-center text-sm text-slate-400">
+            No tools available for the selected regions.
+          </p>
+        ) : featureRows.length === 0 ? (
+          <p className="py-12 text-center text-sm text-slate-400">
+            Loading features…
+          </p>
+        ) : (
+          <>
+            {/* ── Sticky tool-name header ──
+                Direct child of the relative div — no overflow ancestor between it
+                and the page root. Clips with overflow-hidden; the inner flex div
+                slides left via CSS transform to stay in sync with horizontal scroll. ── */}
+            <div
+              className="sticky top-16 z-20 bg-white shadow-sm overflow-hidden"
             >
-              <thead>
-                <tr>
-                  <th className="sticky left-0 bg-white z-20 text-left py-4 px-5 text-sm font-semibold text-slate-500 border-b border-slate-200 min-w-[220px] w-[220px]">
-                    Feature
-                  </th>
-                  {displayedTools.map((tool) => {
-                    const av = avatarColor(tool.name)
-                    const count = featureCount(tool, featureRows)
-                    const pricingBadge =
-                      tool.pricing_type === 'free'
-                        ? { label: 'Free', cls: 'bg-emerald-50 text-emerald-700' }
-                        : tool.pricing_type === 'freemium'
-                        ? { label: 'Freemium', cls: 'bg-blue-50 text-blue-700' }
-                        : { label: 'Paid', cls: 'bg-slate-100 text-slate-600' }
-                    const priceFrom = tool.price_from && tool.price_from > 0 ? tool.price_from : null
-                    return (
-                      <th
-                        key={tool.id}
-                        className="py-4 px-3 text-center border-b border-slate-200 min-w-[150px]"
-                      >
-                        <div className="flex flex-col items-center gap-2">
-                          <div
-                            className={cn(
-                              'flex h-10 w-10 items-center justify-center rounded-full text-base font-bold',
-                              av.bg,
-                              av.text
-                            )}
-                          >
-                            {tool.name.charAt(0)}
-                          </div>
-                          <span className="text-sm font-semibold text-slate-800 leading-tight text-center">
-                            {tool.name}
-                          </span>
-                          <div className="flex flex-col items-center gap-0.5">
-                            <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${pricingBadge.cls}`}>
-                              {pricingBadge.label}
-                            </span>
-                            {priceFrom && (
-                              <span className="text-xs text-slate-400">From ${priceFrom}/yr</span>
-                            )}
-                          </div>
-                          <span className="text-xs text-slate-400 font-normal">
-                            {count} feature{count !== 1 ? 's' : ''}
-                          </span>
+              <div
+                className="flex"
+                style={{
+                  minWidth: `${220 + displayedTools.length * 150}px`,
+                  transform: `translateX(-${headerOffset}px)`,
+                  willChange: 'transform',
+                }}
+              >
+                {/* Corner cell */}
+                <div className="flex-none w-[220px] py-4 px-5 text-sm font-semibold text-slate-500 border-b border-slate-200 bg-white">
+                  Feature
+                </div>
+                {displayedTools.map((tool) => {
+                  const av = avatarColor(tool.name)
+                  const count = featureCount(tool, featureRows)
+                  const pricingBadge =
+                    tool.pricing_type === 'free'
+                      ? { label: 'Free', cls: 'bg-emerald-50 text-emerald-700' }
+                      : tool.pricing_type === 'freemium'
+                      ? { label: 'Freemium', cls: 'bg-blue-50 text-blue-700' }
+                      : { label: 'Paid', cls: 'bg-slate-100 text-slate-600' }
+                  const priceFrom = tool.price_from && tool.price_from > 0 ? tool.price_from : null
+                  return (
+                    <div
+                      key={tool.id}
+                      className="flex-none w-[150px] bg-white py-4 px-3 text-center border-b border-slate-200"
+                    >
+                      <div className="flex flex-col items-center gap-2">
+                        <div
+                          className={cn(
+                            'flex h-10 w-10 items-center justify-center rounded-full text-base font-bold',
+                            av.bg,
+                            av.text
+                          )}
+                        >
+                          {tool.name.charAt(0)}
                         </div>
-                      </th>
-                    )
-                  })}
-                </tr>
-              </thead>
-              <tbody>
+                        <span className="text-sm font-semibold text-slate-800 leading-tight text-center">
+                          {tool.name}
+                        </span>
+                        <div className="flex flex-col items-center gap-0.5">
+                          <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${pricingBadge.cls}`}>
+                            {pricingBadge.label}
+                          </span>
+                          {priceFrom && (
+                            <span className="text-xs text-slate-400">From ${priceFrom}/yr</span>
+                          )}
+                        </div>
+                        <span className="text-xs text-slate-400 font-normal">
+                          {count} feature{count !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* ── Feature rows — the only overflow-x-auto container ── */}
+            <div
+              ref={scrollRef}
+              className="overflow-x-auto"
+              style={{ WebkitOverflowScrolling: 'touch' }}
+            >
+              <div style={{ minWidth: `${220 + displayedTools.length * 150}px` }}>
                 {featureRows.map((feature, ri) => (
-                  <tr
+                  <div
                     key={feature.value}
                     className={cn(
-                      'transition-colors hover:bg-blue-50/30',
+                      'flex transition-colors hover:bg-blue-50/30',
                       ri % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'
                     )}
                   >
-                    <td className="sticky left-0 z-10 py-4 px-5 text-sm font-medium text-slate-700 border-b border-slate-100 bg-inherit">
+                    {/* Feature label — sticky left */}
+                    <div className="sticky left-0 z-10 flex-none w-[220px] py-4 px-5 text-sm font-medium text-slate-700 border-b border-slate-100 bg-inherit">
                       {feature.label}
-                    </td>
+                    </div>
+                    {/* Check / cross cells */}
                     {displayedTools.map((tool) => {
                       const has = hasFeature(tool, feature.value)
                       return (
-                        <td
+                        <div
                           key={tool.id}
-                          className="py-4 px-3 text-center border-b border-slate-100"
+                          className="flex-none w-[150px] py-4 px-3 border-b border-slate-100 flex items-center justify-center"
                         >
-                          <div className="flex justify-center">
-                            {has ? (
-                              <Check className="h-5 w-5 text-emerald-500" strokeWidth={2.5} />
-                            ) : (
-                              <X className="h-5 w-5 text-rose-400" strokeWidth={2.5} />
-                            )}
-                          </div>
-                        </td>
+                          {has ? (
+                            <Check className="h-5 w-5 text-emerald-500" strokeWidth={2.5} />
+                          ) : (
+                            <X className="h-5 w-5 text-rose-400" strokeWidth={2.5} />
+                          )}
+                        </div>
                       )
                     })}
-                  </tr>
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          )}
-        </div>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {sortedFiltered.length > maxInitial && (
