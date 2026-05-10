@@ -46,15 +46,15 @@ export default function Footer() {
               Find the perfect crypto tax software for your needs. Unbiased comparisons and verified reviews.
             </p>
             <div className="flex gap-3 mt-4">
-              <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" aria-label="Twitter" className="text-slate-400 hover:text-white transition-colors">
+              {/* <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" aria-label="Twitter" className="text-slate-400 hover:text-white transition-colors">
                 <Twitter className="h-4 w-4" />
-              </a>
+              </a> */}
               {/* <a href="https://github.com" target="_blank" rel="noopener noreferrer" aria-label="GitHub" className="text-slate-400 hover:text-white transition-colors">
                 <Github className="h-4 w-4" />
               </a> */}
-              <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="text-slate-400 hover:text-white transition-colors">
+              {/* <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="text-slate-400 hover:text-white transition-colors">
                 <Linkedin className="h-4 w-4" />
-              </a>
+              </a> */}
             </div>
           </div>
 
