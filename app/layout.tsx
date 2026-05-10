@@ -30,6 +30,9 @@ export const metadata: Metadata = {
     follow: true,
     googleBot: { index: true, follow: true },
   },
+  icons: {
+    icon: '/favicon.svg',
+  },
 }
 
 export default function RootLayout({
