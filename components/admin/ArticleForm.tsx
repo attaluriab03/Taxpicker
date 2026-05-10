@@ -99,7 +99,7 @@ export default function ArticleForm({ initialData, articleId }: ArticleFormProps
       }
 
       const url = articleId ? `/api/admin/articles/${articleId}` : '/api/admin/articles'
-      const method = articleId ? 'PUT' : 'POST'
+      const method = articleId ? 'PATCH' : 'POST'
 
       const res = await fetch(url, {
         method,
