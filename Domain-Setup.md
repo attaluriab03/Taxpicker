@@ -7,8 +7,8 @@ By the end of this guide, the website will be live at two addresses:
 
 | Address | What It Is |
 |---|---|
-| `https://yourdomain.com` | The public-facing website — the one your customers will visit |
-| `https://admin.yourdomain.com` | The private admin panel (CMS) |
+| `https://taxpicker.com` | The public-facing website — the one your customers will visit |
+| `https://admin.taxpicker.com` | The private admin panel (CMS) |
 
 ---
 
@@ -52,13 +52,13 @@ You need to add **3 records** in total. Your developer will give you the exact v
 
 ### Record 1 — Connect The Main Website
 
-This record connects `yourdomain.com` to your website.
+This record connects `taxpicker.com` to the website.
 
 | Field | What to Enter |
 |---|---|
 | **Type** | `A` |
 | **Name** | `@` |
-| **Value / Points To** | `76.76.21.21` |
+| **Value / Points To** | `216.198.79.1` |
 | **TTL** | `600 seconds` (or select **Custom** and type `600`) |
 
 > **What is `@`?** The `@` symbol means "the root domain" — in other words, `yourdomain.com` itself.
@@ -67,13 +67,13 @@ This record connects `yourdomain.com` to your website.
 
 ### Record 2 — Connect the www Version of Your Website
 
-This record makes sure `www.yourdomain.com` also works and points to the right place.
+This record makes sure `www.taxpicker.com` also works and points to the right place.
 
 | Field | What to Enter |
 |---|---|
 | **Type** | `CNAME` |
 | **Name** | `www` |
-| **Value / Points To** | `cname.vercel-dns.com` |
+| **Value / Points To** | `2adf077dff9f1309.vercel-dns-017.com.` |
 | **TTL** | Leave as default, or type `3600` |
 
 ---
@@ -86,7 +86,7 @@ This record sets up the private admin panel at `admin.yourdomain.com`.
 |---|---|
 | **Type** | `CNAME` |
 | **Name** | `admin` |
-| **Value / Points To** | `cname.vercel-dns.com` |
+| **Value / Points To** | `2adf077dff9f1309.vercel-dns-017.com.` |
 | **TTL** | Leave as default, or type `3600` |
 
 ---
@@ -122,7 +122,7 @@ During this time your developer will:
 Once the waiting period is over, you can check if everything is set up correctly by:
 
 1. Opening a new browser tab
-2. Typing `https://yourdomain.com` in the address bar and pressing Enter
+2. Typing `https://taxpicker.com` in the address bar and pressing Enter
 3. Your website should load
 
 If it is not working after 48 hours, let your developer know and they will help troubleshoot.
@@ -161,9 +161,9 @@ Here are all 3 records you need to add, in one place for easy reference:
 
 | Type | Name | Value / Points To | TTL |
 |---|---|---|---|
-| `A` | `@` | `76.76.21.21` | `600` |
-| `CNAME` | `www` | `cname.vercel-dns.com` | `3600` |
-| `CNAME` | `admin` | `cname.vercel-dns.com` | `3600` |
+| `A` | `@` | `216.198.79.1` | `600` |
+| `CNAME` | `www` | `2adf077dff9f1309.vercel-dns-017.com.` | `3600` |
+| `CNAME` | `admin` | `2adf077dff9f1309.vercel-dns-017.com.` | `3600` |
 
 ---
 
@@ -175,5 +175,3 @@ If you get stuck at any point, don't worry — just reach out to your developer 
 - **GoDaddy Phone Support:** Available 24/7 — the number is listed when you log in to your account
 
 ---
-
-*Document prepared by your developer. Replace `yourdomain.com` with your actual domain name throughout this guide.*
