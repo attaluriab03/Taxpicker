@@ -58,7 +58,7 @@ Browser → Next.js App Router (Vercel)
 
 ### Domain Registrar
 - [ ] Transfer domain ownership to client's registrar account
-- [ ] Update DNS to point to Vercel
+- [ ] Update DNS to point to Vercel (follow Domain-Setup.md for this process)
 
 ---
 
@@ -607,17 +607,6 @@ All admin forms have client-side validation powered by **Zod v4**. Validation ru
 
 ---
 
-### Zod v4 compatibility notes
-
-This project uses Zod v4 (`^4.3.6`). Key differences from v3:
-
-- `z.number('message')` — pass the error message as a plain string, not `{ invalid_type_error: '...' }`.
-- `ZodError.issues` — the array of issues is `.issues`, not `.errors`.
-- `z.enum(['a', 'b'])` — no second argument for a custom error map; use `.refine()` if needed.
-- These patterns are already applied consistently in `lib/validation.ts` and `hooks/useFormValidation.ts`.
-
----
-
 ## 15. Domain and Subdomain Setup
 
 ### Overview
@@ -693,10 +682,10 @@ Next.js rewrites in `next.config.mjs` route admin subdomain requests internally 
 3. Under **Redirect URLs**, add all of the following:
 
 ```
-https://taxpicker.io
-https://taxpicker.io/admin
-https://admin.taxpicker.io
-https://admin.taxpicker.io/login
+https://taxpicker.com
+https://taxpicker.com/admin
+https://admin.taxpicker.com
+https://admin.taxpicker.com/login
 http://localhost:3000
 http://localhost:3000/admin
 ```
@@ -711,10 +700,10 @@ http://localhost:3000/admin
 
 | Check | Expected result |
 |---|---|
-| Visit `https://taxpicker.io` | Public site loads |
-| Visit `https://admin.taxpicker.io` | Redirects to `https://admin.taxpicker.io/login` |
-| Log in at `https://admin.taxpicker.io/login` | Redirects to `https://admin.taxpicker.io` (admin dashboard) |
-| Visit `https://taxpicker.io/admin` | Redirects to `/admin/login` (fallback path still works) |
+| Visit `https://taxpicker.com` | Public site loads |
+| Visit `https://admin.taxpicker.com` | Redirects to `https://admin.taxpicker.io/login` |
+| Log in at `https://admin.taxpicker.com/login` | Redirects to `https://admin.taxpicker.io` (admin dashboard) |
+| Visit `https://taxpicker.com/admin` | Redirects to `/admin/login` (fallback path still works) |
 | Padlock icon in browser | SSL active (Vercel provisions automatically — may take up to 10 minutes) |
 
 ---
